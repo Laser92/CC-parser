@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CC Statement Parser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: dark;
+            --bg-primary: #0a0a0f;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.05);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-focus: rgba(99, 102, 241, 0.5);
+            --text-primary: #f1f1f4;
+            --text-secondary: #a1a1aa;
+            --text-muted: #6b6b76;
+            --accent-start: #6366f1;
+            --accent-end: #8b5cf6;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.08);
+            --danger-border: rgba(239, 68, 68, 0.2);
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+
+        /* Ambient background gradients */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -40%;
+            left: -20%;
+            width: 80%;
+            height: 80%;
+            background: radial-gradient(ellipse, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -30%;
+            right: -15%;
+            width: 70%;
+            height: 70%;
+            background: radial-gradient(ellipse, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 540px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .logo-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
+            position: relative;
+        }
+
+        .logo-icon svg {
+            width: 28px;
+            height: 28px;
+            color: white;
+        }
+
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 17px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.4));
+            z-index: -1;
+            filter: blur(12px);
+        }
+
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            max-width: 400px;
+            margin: 0 auto;
+            font-weight: 400;
+        }
+
+        /* Card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+                0 24px 64px -16px rgba(0, 0, 0, 0.5);
+            transition: border-color 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        /* Dropzone */
+        .dropzone {
+            position: relative;
+            border: 1.5px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.01);
+            overflow: hidden;
+        }
+
+        .dropzone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent-glow), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .dropzone:hover,
+        .dropzone.dragover {
+            border-color: var(--accent-start);
+            background: rgba(99, 102, 241, 0.04);
+        }
+
+        .dropzone:hover::before,
+        .dropzone.dragover::before {
+            opacity: 1;
+        }
+
+        .dropzone.dragover {
+            transform: scale(1.01);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .dropzone.has-file {
+            border-color: var(--success);
+            border-style: solid;
+            background: rgba(34, 197, 94, 0.04);
+        }
+
+        .dropzone-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .dropzone-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            margin-bottom: 1rem;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        .dropzone:hover .dropzone-icon {
+            transform: translateY(-2px);
+            background: var(--accent-glow);
+        }
+
+        .dropzone-icon svg {
+            width: 24px;
+            height: 24px;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
+        }
+
+        .dropzone:hover .dropzone-icon svg,
+        .dropzone.dragover .dropzone-icon svg {
+            color: var(--accent-start);
+        }
+
+        .dropzone-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.35rem;
+            font-weight: 500;
+        }
+
+        .dropzone-text span {
+            color: var(--accent-start);
+            font-weight: 600;
+        }
+
+        .dropzone-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .file-info {
+            display: none;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.625rem 0.875rem;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.15);
+            border-radius: 10px;
+            margin-top: 1rem;
+        }
+
+        .file-info.visible {
+            display: flex;
+        }
+
+        .file-info-icon {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(34, 197, 94, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-info-icon svg {
+            width: 16px;
+            height: 16px;
+            color: var(--success);
+        }
+
+        .file-info-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-info-name {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-info-size {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .file-info-remove {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .file-info-remove:hover {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .file-info-remove svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Hidden file input */
+        .file-input-hidden {
+            display: none;
+        }
+
+        /* Form fields */
+        .form-group {
+            margin-top: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.01em;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .form-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 0.875rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .form-input:hover {
+            border-color: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .form-input:focus {
+            border-color: var(--border-focus);
+            background: rgba(99, 102, 241, 0.04);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        /* Password toggle */
+        .password-toggle {
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .password-toggle:hover {
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .password-toggle svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Password group animation */
+        .password-group {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.3s ease,
+                        margin-top 0.3s ease;
+            margin-top: 0;
+        }
+
+        .password-group.visible {
+            max-height: 120px;
+            opacity: 1;
+            margin-top: 1.25rem;
+        }
+
+        /* Submit button */
+        .btn-submit {
+            width: 100%;
+            height: 48px;
+            margin-top: 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: white;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-submit::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent 50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow:
+                0 8px 24px rgba(99, 102, 241, 0.35),
+                0 2px 8px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-submit:hover:not(:disabled)::before {
+            opacity: 1;
+        }
+
+        .btn-submit:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-submit svg {
+            width: 18px;
+            height: 18px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn-submit .btn-text {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255, 255, 255, 0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-submit.loading .spinner {
+            display: block;
+        }
+
+        .btn-submit.loading .btn-icon {
+            display: none;
+        }
+
+        /* Error area */
+        .error-area {
+            margin-top: 1.25rem;
+            padding: 0.875rem 1rem;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            border-radius: 10px;
+            display: none;
+            align-items: flex-start;
+            gap: 0.625rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        .error-area.visible {
+            display: flex;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            color: var(--danger);
+            margin-top: 1px;
+        }
+
+        .error-text {
+            font-size: 0.8125rem;
+            color: #fca5a5;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        /* Success message */
+        .success-area {
+            margin-top: 1.25rem;
+            padding: 0.875rem 1rem;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.15);
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            gap: 0.625rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        .success-area.visible {
+            display: flex;
+        }
+
+        .success-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            color: var(--success);
+        }
+
+        .success-text {
+            font-size: 0.8125rem;
+            color: #86efac;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 1.75rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .footer a {
+            color: var(--accent-start);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .footer a:hover {
+            color: var(--accent-end);
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            body {
+                padding: 1.5rem 1rem;
+                align-items: flex-start;
+                padding-top: 2.5rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+                border-radius: 16px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .dropzone {
+                padding: 2rem 1rem;
+            }
+        }
+
+        /* Focus-visible for accessibility */
+        *:focus-visible {
+            outline: 2px solid var(--accent-start);
+            outline-offset: 2px;
+        }
+
+        .form-input:focus-visible {
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <line x1="2" y1="10" x2="22" y2="10"/>
+                </svg>
+            </div>
+            <h1>CC Statement Parser</h1>
+            <p>Parse credit card PDF statements or screenshots into structured XLSX files</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="card">
+            <form id="uploadForm" enctype="multipart/form-data">
+
+                <!-- Dropzone -->
+                <div class="dropzone" id="dropzone">
+                    <div class="dropzone-content">
+                        <div class="dropzone-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                        </div>
+                        <div class="dropzone-text">
+                            Drag & drop or <span>browse</span>
+                        </div>
+                        <div class="dropzone-hint">
+                            PDF, PNG, JPG, BMP, TIFF, WEBP
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden file input -->
+                <input type="file"
+                       name="file"
+                       id="fileInput"
+                       class="file-input-hidden"
+                       accept=".pdf,.png,.jpg,.jpeg,.bmp,.tiff,.webp">
+
+                <!-- File info display -->
+                <div class="file-info" id="fileInfo">
+                    <div class="file-info-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                    </div>
+                    <div class="file-info-details">
+                        <div class="file-info-name" id="fileName">—</div>
+                        <div class="file-info-size" id="fileSize">—</div>
+                    </div>
+                    <button type="button" class="file-info-remove" id="fileRemove" title="Remove file">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- PDF Password (conditional) -->
+                <div class="password-group" id="passwordGroup">
+                    <label for="passwordInput" class="form-label">PDF Password (if encrypted)</label>
+                    <div class="input-wrapper">
+                        <input type="password"
+                               name="password"
+                               id="passwordInput"
+                               class="form-input"
+                               placeholder="Enter PDF password"
+                               autocomplete="off"
+                               style="padding-right: 2.75rem;">
+                        <button type="button" class="password-toggle" id="passwordToggle" title="Toggle visibility">
+                            <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg id="eyeOffIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card Name -->
+                <div class="form-group">
+                    <label for="cardNameInput" class="form-label">Card Name</label>
+                    <input type="text"
+                           name="card_name"
+                           id="cardNameInput"
+                           class="form-input"
+                           value="SBI"
+                           placeholder="e.g. SBI, HDFC, ICICI">
+                </div>
+
+                <!-- Output Style -->
+                <div class="form-group">
+                    <label for="styleSelect" class="form-label">Output Style</label>
+                    <select name="style" id="styleSelect" class="form-input" style="cursor: pointer; color: var(--text-primary); background-color: var(--bg-input);">
+                        <option value="1">Style 1 (Standard Blue Header, White Rows)</option>
+                        <option value="2">Style 2 (Dark Blue Header, Alternating Rows)</option>
+                    </select>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                    <span class="btn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 16 12 12 8 16"/>
+                            <line x1="12" y1="12" x2="12" y2="21"/>
+                            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                        </svg>
+                    </span>
+                    <span class="spinner"></span>
+                    <span class="btn-text">Parse Statement</span>
+                </button>
+            </form>
+
+            <!-- Error display -->
+            <div class="error-area" id="errorArea">
+                <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                <div class="error-text" id="errorText"></div>
+            </div>
+
+            <!-- Success display -->
+            <div class="success-area" id="successArea">
+                <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <div class="success-text" id="successText"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            Powered by AI &middot; Secure &amp; Private
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            // Elements
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('fileInput');
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const fileRemove = document.getElementById('fileRemove');
+            const passwordGroup = document.getElementById('passwordGroup');
+            const passwordInput = document.getElementById('passwordInput');
+            const passwordToggle = document.getElementById('passwordToggle');
+            const eyeIcon = document.getElementById('eyeIcon');
+            const eyeOffIcon = document.getElementById('eyeOffIcon');
+            const form = document.getElementById('uploadForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const errorArea = document.getElementById('errorArea');
+            const errorText = document.getElementById('errorText');
+            const successArea = document.getElementById('successArea');
+            const successText = document.getElementById('successText');
+
+            // Helpers
+            const PDF_EXTENSIONS = ['pdf'];
+            const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'webp'];
+
+            function getExtension(name) {
+                return (name || '').split('.').pop().toLowerCase();
+            }
+
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+
+            function showError(msg) {
+                successArea.classList.remove('visible');
+                errorText.textContent = msg;
+                errorArea.classList.add('visible');
+            }
+
+            function hideError() {
+                errorArea.classList.remove('visible');
+            }
+
+            function showSuccess(msg) {
+                hideError();
+                successText.textContent = msg;
+                successArea.classList.add('visible');
+                setTimeout(() => successArea.classList.remove('visible'), 5000);
+            }
+
+            function setLoading(loading) {
+                submitBtn.classList.toggle('loading', loading);
+                submitBtn.disabled = loading;
+                if (loading) {
+                    submitBtn.querySelector('.btn-text').textContent = 'Processing…';
+                } else {
+                    submitBtn.querySelector('.btn-text').textContent = 'Parse Statement';
+                    submitBtn.disabled = !fileInput.files.length;
+                }
+            }
+
+            function handleFile(file) {
+                if (!file) return;
+
+                const ext = getExtension(file.name);
+                if (!ALLOWED_EXTENSIONS.includes(ext)) {
+                    showError('Unsupported file type. Please upload PDF, PNG, JPG, BMP, TIFF, or WEBP.');
+                    return;
+                }
+
+                hideError();
+
+                // Transfer file to input
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+
+                // Update UI
+                fileName.textContent = file.name;
+                fileSize.textContent = formatBytes(file.size);
+                fileInfo.classList.add('visible');
+                dropzone.classList.add('has-file');
+                submitBtn.disabled = false;
+
+                // Show/hide password field
+                if (PDF_EXTENSIONS.includes(ext)) {
+                    passwordGroup.classList.add('visible');
+                } else {
+                    passwordGroup.classList.remove('visible');
+                    passwordInput.value = '';
+                }
+            }
+
+            function clearFile() {
+                fileInput.value = '';
+                fileInfo.classList.remove('visible');
+                dropzone.classList.remove('has-file');
+                passwordGroup.classList.remove('visible');
+                passwordInput.value = '';
+                submitBtn.disabled = true;
+                hideError();
+            }
+
+            // Dropzone events
+            ['dragenter', 'dragover'].forEach(evt => {
+                dropzone.addEventListener(evt, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('dragover');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(evt => {
+                dropzone.addEventListener(evt, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('dragover');
+                });
+            });
+
+            dropzone.addEventListener('drop', e => {
+                const file = e.dataTransfer.files[0];
+                if (file) handleFile(file);
+            });
+
+            dropzone.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length) handleFile(fileInput.files[0]);
+            });
+
+            fileRemove.addEventListener('click', e => {
+                e.stopPropagation();
+                clearFile();
+            });
+
+            // Password toggle
+            passwordToggle.addEventListener('click', () => {
+                const isPassword = passwordInput.type === 'password';
+                passwordInput.type = isPassword ? 'text' : 'password';
+                eyeIcon.style.display = isPassword ? 'none' : 'block';
+                eyeOffIcon.style.display = isPassword ? 'block' : 'none';
+            });
+
+            // Form submission
+            form.addEventListener('submit', async e => {
+                e.preventDefault();
+                hideError();
+                successArea.classList.remove('visible');
+
+                if (!fileInput.files.length) {
+                    showError('Please select a file to upload.');
+                    return;
+                }
+
+                setLoading(true);
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('card_name', document.getElementById('cardNameInput').value || 'SBI');
+                formData.append('style', document.getElementById('styleSelect').value || '1');
+
+                const ext = getExtension(fileInput.files[0].name);
+                if (PDF_EXTENSIONS.includes(ext) && passwordInput.value) {
+                    formData.append('password', passwordInput.value);
+                }
+
+                try {
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        let errorMsg = 'An error occurred while processing your file.';
+                        try {
+                            const contentType = response.headers.get('content-type') || '';
+                            if (contentType.includes('application/json')) {
+                                const errData = await response.json();
+                                errorMsg = errData.error || errData.message || errorMsg;
+                            } else {
+                                const text = await response.text();
+                                if (text) errorMsg = text;
+                            }
+                        } catch (_) {}
+                        showError(errorMsg);
+                        setLoading(false);
+                        return;
+                    }
+
+                    // Trigger download
+                    const blob = await response.blob();
+
+                    // Extract filename from Content-Disposition header if present
+                    let downloadName = 'parsed_statement.xlsx';
+                    const disposition = response.headers.get('Content-Disposition');
+                    if (disposition) {
+                        const match = disposition.match(/filename\*?=['"]?(?:UTF-8'')?([^;\r\n"']+)/i);
+                        if (match && match[1]) {
+                            downloadName = decodeURIComponent(match[1]);
+                        }
+                    }
+
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = downloadName;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+
+                    showSuccess('File parsed successfully! Your download should begin automatically.');
+                } catch (err) {
+                    showError('Network error. Please check your connection and try again.');
+                } finally {
+                    setLoading(false);
+                }
+            });
+
+            // Prevent default dragover on the whole page
+            document.addEventListener('dragover', e => e.preventDefault());
+            document.addEventListener('drop', e => e.preventDefault());
+        })();
+    </script>
+</body>
+</html>
