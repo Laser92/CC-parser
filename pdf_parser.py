@@ -109,10 +109,10 @@ TRANSACTION_OCR_RE = re.compile(
 # Format 2 (Alternate Statement Type):
 # 01/06/2026| 00:00  ETERNAL LIMITEDGURGAON  - 8  + ₹ 468.84
 FORMAT2_RE = re.compile(
-    r"^(\d{2}/\d{2}/\d{4}\|\s*\d{2}:\d{2})\s+"  # date and time: 01/06/2026| 00:00
-    r"(.+?)\s+"                                 # description (non-greedy)
-    r"(?:(?:[+-]\s*)?\d+\s+)?"                  # optional rewards (ignored)
-    r"([+-]?)\s*₹\s*([\d,]+\.\d{2})\s*$"        # sign and amount
+    r"^(\d{2}/\d{2}/\d{4}[|1lI\s]*\d{2}:\d{2})\s+"  # date and time (lenient on pipe)
+    r"(.+?)\s+"                                     # description (non-greedy)
+    r"(?:(?:[+-]\s*)?\d+\s+)?"                      # optional rewards (ignored)
+    r"([+-]?)\s*(?:₹|[?FRz2])?\s*([\d,]+\.\d{2})\s*$" # sign and amount (lenient on Rupee symbol)
 )
 
 # Lines to skip (headers, footers, section titles, etc.)
@@ -148,7 +148,8 @@ def parse_date(date_str: str) -> datetime:
 
 def parse_date_format2(date_str: str) -> datetime:
     """Parse date string like '01/06/2026| 00:00' into a datetime object."""
-    date_part = date_str.split('|')[0].strip()
+    # OCR can mess up the pipe, but the date is always 10 chars: DD/MM/YYYY
+    date_part = date_str[:10]
     return datetime.strptime(date_part, "%d/%m/%Y")
 
 
