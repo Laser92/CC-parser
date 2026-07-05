@@ -109,10 +109,10 @@ TRANSACTION_OCR_RE = re.compile(
 # Format 2 (Alternate Statement Type):
 # 01/06/2026| 00:00  ETERNAL LIMITEDGURGAON  - 8  + ₹ 468.84
 FORMAT2_RE = re.compile(
-    r"^(\d{2}/\d{2}/\d{4}[|1lI\s]*\d{2}:\d{2})\s+"  # date and time (lenient on pipe)
+    r"^(\d{2}/\d{2}/\d{4}\|\s*\d{2}:\d{2})\s+"      # date and time (cleaned by _fix_ocr_errors)
     r"(.+?)\s+"                                     # description (non-greedy)
     r"(?:(?:[+-]\s*)?\d+\s+)?"                      # optional rewards (ignored)
-    r"([+-]?)\s*(?:₹|[?FRz2])?\s*([\d,]+\.\d{2})\s*$" # sign and amount (lenient on Rupee symbol)
+    r"([+-]?)\s*(?:₹)?\s*([\d,]+\.\d{2})\s*$"       # sign and amount
 )
 
 # Lines to skip (headers, footers, section titles, etc.)
@@ -148,8 +148,7 @@ def parse_date(date_str: str) -> datetime:
 
 def parse_date_format2(date_str: str) -> datetime:
     """Parse date string like '01/06/2026| 00:00' into a datetime object."""
-    # OCR can mess up the pipe, but the date is always 10 chars: DD/MM/YYYY
-    date_part = date_str[:10]
+    date_part = date_str.split('|')[0].strip()
     return datetime.strptime(date_part, "%d/%m/%Y")
 
 
@@ -415,9 +414,24 @@ def _fix_ocr_errors(line: str) -> str:
     for wrong, right in month_fixes.items():
         line = line.replace(wrong, right)
     
-    # Fix 'O' misread as '0' in amount at end of line
+    # Fix 'O' misread as '0' in amount at end of line (Format 1)
     line = re.sub(r"(\d)O(\s+[CDcd]\s*$)", r"\g<1>0\2", line)
     line = re.sub(r"O(\d{2}\s+[CDcd]\s*$)", r"0\1", line)
+    
+    # Format 2 specific OCR fixes
+    # 1. Fix date/time separator (e.g. '01/06/20261 00.00' -> '01/06/2026| 00:00')
+    line = re.sub(r"^(\d{2}/\d{2}/\d{4})[|1lI\s/,]+(\d{2})[.:\s]?(\d{2})\d*\b", r"\1| \2:\3", line)
+    
+    # 2. Fix Rupee symbol misreads ('{', '<', '?', 'F', 'R', 'z' followed by amount)
+    line = re.sub(r"[{<?FRz]\s*([\d,.]+\.\d{2})\b", r"₹ \1", line)
+    
+    # 3. Fix '+' misread as '3' or omitted entirely before amounts (e.g. '3 24,115.00' -> '+ ₹ 24,115.00')
+    line = re.sub(r"\b3\s+(?:₹\s*)?([\d,.]+\.\d{2})\b", r"+ ₹ \1", line)
+    line = re.sub(r"\+\s*(?:₹\s*)?([\d,.]+\.\d{2})\b", r"+ ₹ \1", line)
+    
+    # 4. Fix commas misread as dots in amounts (e.g. '11.950.00' -> '11,950.00')
+    line = re.sub(r"(\d)\.(\d{3})\.(\d{2})\b", r"\1,\2.\3", line)
+    line = re.sub(r"(\d)\.(\d{3})\,(\d{2})\b", r"\1,\2.\3", line)
     
     return line
 
@@ -447,6 +461,13 @@ def extract_transactions_from_image(image_path: str) -> list[dict]:
     # Fix common OCR errors and parse
     lines = text.split("\n")
     fixed_lines = [_fix_ocr_errors(line) for line in lines]
+    
+    # Debug: print OCR output
+    print("  -> OCR extracted lines:")
+    for i, line in enumerate(fixed_lines):
+        f1_match = "F1" if TRANSACTION_OCR_RE.match(line) else "  "
+        f2_match = "F2" if FORMAT2_RE.match(line) else "  "
+        print(f"     [{f1_match}|{f2_match}] {repr(line)}")
     
     return parse_lines_to_transactions(fixed_lines, use_ocr_regex=True)
 
