@@ -345,16 +345,9 @@ def _ocr_with_easyocr(image_path: str) -> str:
     """Run OCR on an image using EasyOCR and return reconstructed text lines."""
     reader = _get_easyocr_reader()
     
-    # Preprocess the image with OpenCV to improve OCR accuracy on small symbols (+, ₹, commas)
-    import cv2
-    img = cv2.imread(image_path)
-    if img is not None:
-        # Upscale by 2x using cubic interpolation
-        img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-        # Pass the preprocessed numpy array to EasyOCR
-        results = reader.readtext(img, detail=1, paragraph=False, min_size=1, text_threshold=0.1)
-    else:
-        results = reader.readtext(image_path, detail=1, paragraph=False, min_size=1, text_threshold=0.1)
+    # EasyOCR returns list of (bbox, text, confidence)
+    # Use min_size=1 to avoid dropping small standalone characters like 'C' or 'D' on the far edge
+    results = reader.readtext(image_path, detail=1, paragraph=False, min_size=1, text_threshold=0.1)
     
     if not results:
         return ""
@@ -443,7 +436,7 @@ def _fix_ocr_errors(line: str) -> str:
     return line
 
 
-def extract_transactions_from_image(image_path: str) -> list[dict]:
+def extract_transactions_from_image(image_path: str, ocr_engine: str = "easyocr") -> list[dict]:
     """
     Extract transactions from a screenshot image using OCR.
     Uses EasyOCR (preferred) or pytesseract as fallback.
@@ -455,8 +448,8 @@ def extract_transactions_from_image(image_path: str) -> list[dict]:
         print("       + Tesseract OCR:  https://github.com/UB-Mannheim/tesseract/wiki")
         return []
     
-    # Run OCR with the available backend
-    if OCR_BACKEND == "easyocr":
+    # Run OCR with the requested backend (if available)
+    if ocr_engine == "easyocr" and OCR_BACKEND == "easyocr":
         text = _ocr_with_easyocr(image_path)
     else:
         text = _ocr_with_pytesseract(image_path)
@@ -483,7 +476,7 @@ def extract_transactions_from_image(image_path: str) -> list[dict]:
 # Unified file extraction
 # ---------------------------------------------------------------------------
 
-def extract_transactions_from_file(file_path: str) -> list[dict]:
+def extract_transactions_from_file(file_path: str, ocr_engine: str = "easyocr") -> list[dict]:
     """
     Extract transactions from a file (PDF or image).
     Auto-detects file type by extension.
@@ -493,7 +486,7 @@ def extract_transactions_from_file(file_path: str) -> list[dict]:
     if ext in PDF_EXTENSIONS:
         return extract_transactions_from_pdf(file_path)
     elif ext in IMAGE_EXTENSIONS:
-        return extract_transactions_from_image(file_path)
+        return extract_transactions_from_image(file_path, ocr_engine=ocr_engine)
     else:
         print(f"  -> Skipping unsupported file type: {ext}")
         return []

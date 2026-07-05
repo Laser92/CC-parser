@@ -34,6 +34,7 @@ def upload():
     card_name = request.form.get('card_name', 'SBI').strip() or 'SBI'
     style_str = request.form.get('style', '1').strip()
     style = int(style_str) if style_str.isdigit() else 1
+    ocr_engine = request.form.get('ocr_engine', 'easyocr').strip()
     
     # Check file extension
     ext = os.path.splitext(file.filename)[1].lower()
@@ -54,7 +55,7 @@ def upload():
         if ext in PDF_EXTENSIONS:
             transactions = extract_transactions_from_pdf(input_path, password=password)
         else:
-            transactions = extract_transactions_from_image(input_path)
+            transactions = extract_transactions_from_image(input_path, ocr_engine=ocr_engine)
         
         if not transactions:
             return jsonify({

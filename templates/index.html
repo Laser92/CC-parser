@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CC Statement Parser</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='12' width='64' height='64' fill='%236366f1'/%3E%3Cpath d='M20 16h24M20 24h24M20 16v4h10c4 0 7 3 7 7s-3 7-7 7H20' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M34 34l-14 14' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -746,6 +747,15 @@
                         <option value="2">Style 2 (Dark Blue Header, Alternating Rows)</option>
                     </select>
                 </div>
+                
+                <!-- OCR Engine -->
+                <div class="form-group">
+                    <label for="ocrSelect" class="form-label">OCR Engine (For Images Only)</label>
+                    <select name="ocr_engine" id="ocrSelect" class="form-input" style="cursor: pointer; color: var(--text-primary); background-color: var(--bg-input);">
+                        <option value="easyocr">EasyOCR (Fast, usually better)</option>
+                        <option value="tesseract">Tesseract (Try if amounts/signs are wrong)</option>
+                    </select>
+                </div>
 
                 <!-- Submit -->
                 <button type="submit" class="btn-submit" id="submitBtn" disabled>
@@ -952,6 +962,7 @@
                 formData.append('file', fileInput.files[0]);
                 formData.append('card_name', document.getElementById('cardNameInput').value || 'SBI');
                 formData.append('style', document.getElementById('styleSelect').value || '1');
+                formData.append('ocr_engine', document.getElementById('ocrSelect').value || 'easyocr');
 
                 const ext = getExtension(fileInput.files[0].name);
                 if (PDF_EXTENSIONS.includes(ext) && passwordInput.value) {
