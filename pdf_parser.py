@@ -33,18 +33,17 @@ from openpyxl.utils import get_column_letter
 OCR_BACKEND = None  # Will be set to "easyocr" or "pytesseract" or None
 
 try:
+    import pytesseract
+    from PIL import Image, ImageFilter, ImageOps
+    OCR_BACKEND = "pytesseract"
+except ImportError:
+    pass
+
+try:
     import easyocr
     OCR_BACKEND = "easyocr"
 except ImportError:
     pass
-
-if OCR_BACKEND is None:
-    try:
-        import pytesseract
-        from PIL import Image, ImageFilter, ImageOps
-        OCR_BACKEND = "pytesseract"
-    except ImportError:
-        pass
 
 # PIL is also useful for easyocr preprocessing
 try:
