@@ -345,9 +345,16 @@ def _ocr_with_easyocr(image_path: str) -> str:
     """Run OCR on an image using EasyOCR and return reconstructed text lines."""
     reader = _get_easyocr_reader()
     
-    # EasyOCR returns list of (bbox, text, confidence)
-    # Use min_size=1 to avoid dropping small standalone characters like 'C' or 'D' on the far edge
-    results = reader.readtext(image_path, detail=1, paragraph=False, min_size=1, text_threshold=0.1)
+    # Preprocess the image with OpenCV to improve OCR accuracy on small symbols (+, ₹, commas)
+    import cv2
+    img = cv2.imread(image_path)
+    if img is not None:
+        # Upscale by 2x using cubic interpolation
+        img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        # Pass the preprocessed numpy array to EasyOCR
+        results = reader.readtext(img, detail=1, paragraph=False, min_size=1, text_threshold=0.1)
+    else:
+        results = reader.readtext(image_path, detail=1, paragraph=False, min_size=1, text_threshold=0.1)
     
     if not results:
         return ""
