@@ -752,8 +752,8 @@
                 <div class="form-group">
                     <label for="ocrSelect" class="form-label">OCR Engine (For Images Only)</label>
                     <select name="ocr_engine" id="ocrSelect" class="form-input" style="cursor: pointer; color: var(--text-primary); background-color: var(--bg-input);">
-                        <option value="easyocr">EasyOCR (Fast, usually better)</option>
-                        <option value="tesseract">Tesseract (Try if amounts/signs are wrong)</option>
+                        <option value="tesseract" selected>Tesseract (Recommended for amounts/signs)</option>
+                        <option value="easyocr">EasyOCR (Fast, but fails on ₹/+ symbols)</option>
                     </select>
                 </div>
 
