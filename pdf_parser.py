@@ -111,7 +111,7 @@ FORMAT2_RE = re.compile(
     r"^(\d{2}/\d{2}/\d{4}\s*(?:\|)?\s*\d{2}:\d{2})\s+"   # date and time (optional pipe)
     r"(.+?)\s+"                                     # description (non-greedy)
     r"(?:(?:[+-]\s*)?\d+\s+)?"                      # optional rewards (ignored)
-    r"([+-]?)\s*(?:₹)?\s*([\d,]+\.\d{2})\b.*$"      # sign and amount (allow trailing garbage)
+    r"([+-]?)\s*(?:₹|C|c|€|E)?\s*([\d,]+\.\d{2})\b.*$"  # sign and amount (allow trailing garbage, handle OCR hallucinating C instead of ₹)
 )
 
 # Lines to skip (headers, footers, section titles, etc.)
