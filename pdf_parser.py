@@ -580,7 +580,10 @@ def write_to_xlsx(transactions: list[dict], output_path: str, card_name: str = "
         # Column B: Amount
         amount_cell = ws.cell(row=row_idx, column=2, value=txn["amount"])
         amount_cell.number_format = amount_format
-        amount_cell.font = data_font
+        if txn["type"] == "C":
+            amount_cell.font = Font(name="Calibri", size=11, color="00B050") # Green
+        else:
+            amount_cell.font = data_font
         amount_cell.border = thin_border
         
         # Column C: My Share (blank - user input)
