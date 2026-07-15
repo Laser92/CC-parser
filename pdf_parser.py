@@ -263,7 +263,7 @@ def parse_lines_to_transactions(lines: list[str], use_ocr_regex: bool = False) -
                     "description": description,
                     "amount": amt,
                     "type": txn_type,   # C = Credit, D = Debit
-                    "remark": simplify_description(description),
+                    "remark": description,
                 }
                 transactions.append(txn)
             except ValueError:
@@ -288,7 +288,7 @@ def parse_lines_to_transactions(lines: list[str], use_ocr_regex: bool = False) -
                     "description": description,
                     "amount": amt,
                     "type": txn_type,
-                    "remark": simplify_description(description),
+                    "remark": description,
                 }
                 transactions.append(txn)
             except ValueError:
