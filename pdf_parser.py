@@ -108,7 +108,7 @@ TRANSACTION_OCR_RE = re.compile(
 # Format 2 (Alternate Statement Type):
 # 01/06/2026 | 00:00  ETERNAL LIMITEDGURGAON  - 8  + ₹ 468.84
 FORMAT2_RE = re.compile(
-    r"^(\d{2}/\d{2}/\d{4}\s*\|\s*\d{2}:\d{2})\s+"   # date and time (lenient on pipe space)
+    r"^(\d{2}/\d{2}/\d{4}\s*(?:\|)?\s*\d{2}:\d{2})\s+"   # date and time (optional pipe)
     r"(.+?)\s+"                                     # description (non-greedy)
     r"(?:(?:[+-]\s*)?\d+\s+)?"                      # optional rewards (ignored)
     r"([+-]?)\s*(?:₹)?\s*([\d,]+\.\d{2})\b.*$"      # sign and amount (allow trailing garbage)
