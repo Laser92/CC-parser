@@ -37,3 +37,4 @@ env/
 screenshot.png
 screenshot.jpg
 *.pdf
+service_account.json

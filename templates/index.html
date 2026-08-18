@@ -629,6 +629,204 @@
             }
         }
 
+        /* Button row */
+        .btn-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.75rem;
+        }
+
+        .btn-row .btn-submit {
+            margin-top: 0;
+            flex: 1;
+        }
+
+        .btn-sheets {
+            background: linear-gradient(135deg, #059669, #10b981) !important;
+        }
+
+        .btn-sheets:hover:not(:disabled) {
+            box-shadow:
+                0 8px 24px rgba(5, 150, 105, 0.35),
+                0 2px 8px rgba(5, 150, 105, 0.2) !important;
+        }
+
+        .btn-sheets .btn-text { font-size: 0.8125rem; }
+
+        /* Reconciliation results */
+        .results-area {
+            margin-top: 1.25rem;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .results-area.visible { display: block; }
+
+        .results-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .results-stat {
+            text-align: center;
+            padding: 0.75rem 0.5rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .results-stat .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .results-stat .stat-label {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 600;
+        }
+
+        .stat-parsed .stat-value { color: var(--accent-start); }
+        .stat-added .stat-value { color: var(--success); }
+        .stat-skipped .stat-value { color: var(--text-muted); }
+
+        .results-details {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .results-details::-webkit-scrollbar {
+            width: 4px;
+        }
+        .results-details::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+        }
+
+        .txn-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 0.875rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(255, 255, 255, 0.02);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .txn-header.added-header { color: #4ade80; }
+        .txn-header.skipped-header { color: var(--text-muted); }
+
+        .txn-row {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.875rem;
+            gap: 0.75rem;
+            font-size: 0.8125rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            transition: background 0.15s ease;
+        }
+
+        .txn-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .txn-row:last-child { border-bottom: none; }
+
+        .txn-badge {
+            flex-shrink: 0;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .txn-badge.added { background: var(--success); }
+        .txn-badge.skipped { background: var(--text-muted); }
+
+        .txn-date {
+            flex-shrink: 0;
+            width: 72px;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.75rem;
+        }
+
+        .txn-merchant {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .txn-amount {
+            flex-shrink: 0;
+            text-align: right;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-primary);
+        }
+
+        .txn-amount.negative { color: #4ade80; }
+
+        .txn-card {
+            flex-shrink: 0;
+            font-size: 0.6875rem;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            background: rgba(99, 102, 241, 0.12);
+            color: #a5b4fc;
+            font-weight: 600;
+        }
+
+        /* Sheets connection badge */
+        .sheets-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 0.25rem 0.625rem;
+            border-radius: 20px;
+            margin-top: 0.75rem;
+        }
+
+        .sheets-badge.connected {
+            color: #4ade80;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.15);
+        }
+
+        .sheets-badge.disconnected {
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.15);
+        }
+
+        .sheets-badge .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
         /* Focus-visible for accessibility */
         *:focus-visible {
             outline: 2px solid var(--accent-start);
@@ -637,6 +835,15 @@
 
         .form-input:focus-visible {
             outline: none;
+        }
+
+        @media (max-width: 480px) {
+            .btn-row {
+                flex-direction: column;
+            }
+            .results-summary {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
     </style>
 </head>
@@ -757,18 +964,33 @@
                     </select>
                 </div>
 
-                <!-- Submit -->
-                <button type="submit" class="btn-submit" id="submitBtn" disabled>
-                    <span class="btn-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="16 16 12 12 8 16"/>
-                            <line x1="12" y1="12" x2="12" y2="21"/>
-                            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-                        </svg>
-                    </span>
-                    <span class="spinner"></span>
-                    <span class="btn-text">Parse Statement</span>
-                </button>
+                <!-- Buttons -->
+                <div class="btn-row">
+                    <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="16 16 12 12 8 16"/>
+                                <line x1="12" y1="12" x2="12" y2="21"/>
+                                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                            </svg>
+                        </span>
+                        <span class="spinner"></span>
+                        <span class="btn-text">Download XLSX</span>
+                    </button>
+
+                    <button type="button" class="btn-submit btn-sheets" id="reconcileBtn" disabled>
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <path d="M12 18v-6"/>
+                                <path d="M9 15l3-3 3 3"/>
+                            </svg>
+                        </span>
+                        <span class="spinner"></span>
+                        <span class="btn-text">Add to Sheets</span>
+                    </button>
+                </div>
             </form>
 
             <!-- Error display -->
@@ -788,6 +1010,25 @@
                     <polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
                 <div class="success-text" id="successText"></div>
+            </div>
+
+            <!-- Reconciliation results -->
+            <div class="results-area" id="resultsArea">
+                <div class="results-summary">
+                    <div class="results-stat stat-parsed">
+                        <div class="stat-value" id="statParsed">0</div>
+                        <div class="stat-label">Parsed</div>
+                    </div>
+                    <div class="results-stat stat-added">
+                        <div class="stat-value" id="statAdded">0</div>
+                        <div class="stat-label">Added</div>
+                    </div>
+                    <div class="results-stat stat-skipped">
+                        <div class="stat-value" id="statSkipped">0</div>
+                        <div class="stat-label">Skipped</div>
+                    </div>
+                </div>
+                <div class="results-details" id="resultsDetails"></div>
             </div>
         </div>
 
@@ -813,10 +1054,13 @@
             const eyeOffIcon = document.getElementById('eyeOffIcon');
             const form = document.getElementById('uploadForm');
             const submitBtn = document.getElementById('submitBtn');
+            const reconcileBtn = document.getElementById('reconcileBtn');
             const errorArea = document.getElementById('errorArea');
             const errorText = document.getElementById('errorText');
             const successArea = document.getElementById('successArea');
             const successText = document.getElementById('successText');
+            const resultsArea = document.getElementById('resultsArea');
+            const resultsDetails = document.getElementById('resultsDetails');
 
             // Helpers
             const PDF_EXTENSIONS = ['pdf'];
@@ -851,15 +1095,18 @@
                 setTimeout(() => successArea.classList.remove('visible'), 5000);
             }
 
-            function setLoading(loading) {
-                submitBtn.classList.toggle('loading', loading);
-                submitBtn.disabled = loading;
+            function setLoading(btn, loading, defaultText) {
+                btn.classList.toggle('loading', loading);
+                btn.disabled = loading;
                 if (loading) {
-                    submitBtn.querySelector('.btn-text').textContent = 'Processing…';
+                    btn.querySelector('.btn-text').textContent = 'Processing…';
                 } else {
-                    submitBtn.querySelector('.btn-text').textContent = 'Parse Statement';
-                    submitBtn.disabled = !fileInput.files.length;
+                    btn.querySelector('.btn-text').textContent = defaultText;
+                    btn.disabled = !fileInput.files.length;
                 }
+                // Also disable the other button during loading
+                const otherBtn = btn === submitBtn ? reconcileBtn : submitBtn;
+                otherBtn.disabled = loading || !fileInput.files.length;
             }
 
             function handleFile(file) {
@@ -872,6 +1119,7 @@
                 }
 
                 hideError();
+                resultsArea.classList.remove('visible');
 
                 // Transfer file to input
                 const dt = new DataTransfer();
@@ -884,6 +1132,7 @@
                 fileInfo.classList.add('visible');
                 dropzone.classList.add('has-file');
                 submitBtn.disabled = false;
+                reconcileBtn.disabled = !PDF_EXTENSIONS.includes(ext);
 
                 // Show/hide password field
                 if (PDF_EXTENSIONS.includes(ext)) {
@@ -901,7 +1150,9 @@
                 passwordGroup.classList.remove('visible');
                 passwordInput.value = '';
                 submitBtn.disabled = true;
+                reconcileBtn.disabled = true;
                 hideError();
+                resultsArea.classList.remove('visible');
             }
 
             // Dropzone events
@@ -945,18 +1196,19 @@
                 eyeOffIcon.style.display = isPassword ? 'block' : 'none';
             });
 
-            // Form submission
+            // ---- Form submission: Download XLSX ----
             form.addEventListener('submit', async e => {
                 e.preventDefault();
                 hideError();
                 successArea.classList.remove('visible');
+                resultsArea.classList.remove('visible');
 
                 if (!fileInput.files.length) {
                     showError('Please select a file to upload.');
                     return;
                 }
 
-                setLoading(true);
+                setLoading(submitBtn, true, 'Download XLSX');
 
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
@@ -988,14 +1240,13 @@
                             }
                         } catch (_) {}
                         showError(errorMsg);
-                        setLoading(false);
+                        setLoading(submitBtn, false, 'Download XLSX');
                         return;
                     }
 
                     // Trigger download
                     const blob = await response.blob();
 
-                    // Extract filename from Content-Disposition header if present
                     let downloadName = 'parsed_statement.xlsx';
                     const disposition = response.headers.get('Content-Disposition');
                     if (disposition) {
@@ -1018,9 +1269,108 @@
                 } catch (err) {
                     showError('Network error. Please check your connection and try again.');
                 } finally {
-                    setLoading(false);
+                    setLoading(submitBtn, false, 'Download XLSX');
                 }
             });
+
+            // ---- Reconcile: Add to Google Sheets ----
+            reconcileBtn.addEventListener('click', async () => {
+                hideError();
+                successArea.classList.remove('visible');
+                resultsArea.classList.remove('visible');
+
+                if (!fileInput.files.length) {
+                    showError('Please select a PDF file first.');
+                    return;
+                }
+
+                setLoading(reconcileBtn, true, 'Add to Sheets');
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('card_name', document.getElementById('cardNameInput').value || 'SBI');
+
+                if (passwordInput.value) {
+                    formData.append('password', passwordInput.value);
+                }
+
+                try {
+                    const response = await fetch('/reconcile', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        showError(data.error || 'An error occurred during reconciliation.');
+                        setLoading(reconcileBtn, false, 'Add to Sheets');
+                        return;
+                    }
+
+                    // Show results
+                    renderResults(data);
+
+                } catch (err) {
+                    showError('Network error. Please check your connection and try again.');
+                } finally {
+                    setLoading(reconcileBtn, false, 'Add to Sheets');
+                }
+            });
+
+            function renderResults(data) {
+                document.getElementById('statParsed').textContent = data.total_parsed || 0;
+                document.getElementById('statAdded').textContent = data.added || 0;
+                document.getElementById('statSkipped').textContent = data.skipped || 0;
+
+                let html = '';
+
+                // Added transactions
+                if (data.added_transactions && data.added_transactions.length > 0) {
+                    html += '<div class="txn-header added-header">' +
+                            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' +
+                            'Added to Sheet</div>';
+                    for (const txn of data.added_transactions) {
+                        const amt = typeof txn.amount === 'number' ? txn.amount : parseFloat(txn.amount);
+                        const isNeg = amt < 0;
+                        const displayAmt = '₹' + Math.abs(amt).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                        html += `<div class="txn-row">
+                            <span class="txn-badge added"></span>
+                            <span class="txn-date">${txn.date || ''}</span>
+                            <span class="txn-merchant">${txn.merchant || ''}</span>
+                            <span class="txn-amount ${isNeg ? 'negative' : ''}">${isNeg ? '-' : ''}${displayAmt}</span>
+                            <span class="txn-card">${txn.card || ''}</span>
+                        </div>`;
+                    }
+                }
+
+                // Skipped transactions
+                if (data.skipped_transactions && data.skipped_transactions.length > 0) {
+                    html += '<div class="txn-header skipped-header">' +
+                            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>' +
+                            'Already in Sheet (skipped)</div>';
+                    for (const txn of data.skipped_transactions) {
+                        const amt = typeof txn.amount === 'number' ? txn.amount : parseFloat(txn.amount);
+                        const isNeg = amt < 0;
+                        const displayAmt = '₹' + Math.abs(amt).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                        html += `<div class="txn-row">
+                            <span class="txn-badge skipped"></span>
+                            <span class="txn-date">${txn.date || ''}</span>
+                            <span class="txn-merchant">${txn.merchant || ''}</span>
+                            <span class="txn-amount ${isNeg ? 'negative' : ''}">${isNeg ? '-' : ''}${displayAmt}</span>
+                        </div>`;
+                    }
+                }
+
+                resultsDetails.innerHTML = html;
+                resultsArea.classList.add('visible');
+
+                if (data.added > 0) {
+                    showSuccess(`${data.added} transaction${data.added > 1 ? 's' : ''} added to Google Sheets!`);
+                } else {
+                    showSuccess('All transactions already exist in the sheet — nothing to add.');
+                }
+            }
 
             // Prevent default dragover on the whole page
             document.addEventListener('dragover', e => e.preventDefault());

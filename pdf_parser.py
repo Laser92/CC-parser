@@ -147,8 +147,9 @@ def parse_date(date_str: str) -> datetime:
 
 def parse_date_format2(date_str: str) -> datetime:
     """Parse date string like '01/06/2026| 00:00' into a datetime object."""
-    date_part = date_str.split('|')[0].strip()
-    return datetime.strptime(date_part, "%d/%m/%Y")
+    clean_str = date_str.replace('|', '').strip()
+    clean_str = re.sub(r'\s+', ' ', clean_str)
+    return datetime.strptime(clean_str, "%d/%m/%Y %H:%M")
 
 
 def clean_amount(amount_str: str) -> float:

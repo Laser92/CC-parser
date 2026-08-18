@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Cheddar</string>
+    <string name="subtitle">Credit Card Statement Parser</string>
+</resources>
