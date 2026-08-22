@@ -24,11 +24,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laser92.cheddar.ui.component.FilePicker
@@ -104,6 +106,9 @@ fun HomeScreen(
     }
 
     Scaffold(
+        modifier = Modifier.then(
+            if (uiState.reconcileResult != null) Modifier.blur(16.dp) else Modifier
+        ),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -114,7 +119,7 @@ fun HomeScreen(
                         Text("Cheddar")
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "v1.0.1", 
+                            text = "v1.3.1", 
                             style = MaterialTheme.typography.labelSmall,
                             color = TextMuted,
                             modifier = Modifier
@@ -158,10 +163,11 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(BgCard)
-                    .border(1.dp, BorderSubtle, RoundedCornerShape(24.dp))
-                    .padding(24.dp)
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(Color(0x1AFFFFFF)) // Glassmorphism semi-transparent
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(32.dp))
+                    .blur(radius = if (uiState.reconcileResult != null) 8.dp else 0.dp)
+                    .padding(32.dp)
                     .animateContentSize()
             ) {
                 FilePicker(
@@ -207,6 +213,7 @@ fun HomeScreen(
                     value = uiState.cardName,
                     onValueChange = { viewModel.setCardName(it) },
                     label = { Text("Card Name", color = TextSecondary) },
+                    placeholder = { Text("SBI", color = TextMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BorderFocus,
@@ -242,37 +249,63 @@ fun HomeScreen(
                 }
             }
 
-            // Results Section
-            uiState.reconcileResult?.let { result ->
-                Spacer(modifier = Modifier.height(32.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    StatCard(
-                        value = result.totalParsed,
-                        label = "Parsed",
-                        valueColor = AccentStart,
-                        modifier = Modifier.weight(1f)
+            // Removed inline Results Section; it is now a popup dialog.
+        }
+    }
+
+    // Summary Dialog
+    uiState.reconcileResult?.let { result ->
+        val totalAmount = result.addedTransactions.sumOf { it.amount }
+        val formatter = java.text.NumberFormat.getNumberInstance(java.util.Locale("en", "IN"))
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        val formattedAmount = formatter.format(totalAmount)
+        
+        val tabName = result.addedTransactions.firstOrNull()?.date?.let { dateStr ->
+            // Date is something like 16/07/2026. Let's just say "Google Sheets".
+            // Or extract month/year if we wanted. "Google Sheets" is safer.
+            "Google Sheets"
+        } ?: "Google Sheets"
+
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.dismissResults() },
+            title = {
+                Text(
+                    text = "Parse Complete",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Successfully added ${result.addedTransactions.size} new transactions to $tabName.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextSecondary
                     )
-                    StatCard(
-                        value = result.addedTransactions.size,
-                        label = "Added",
-                        valueColor = Success,
-                        modifier = Modifier.weight(1f)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Skipped ${result.skippedTransactions.size} duplicates.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextMuted
                     )
-                    StatCard(
-                        value = result.skippedTransactions.size,
-                        label = "Skipped",
-                        valueColor = TextMuted,
-                        modifier = Modifier.weight(1f)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Total amount processed: \u20B9$formattedAmount",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Success,
+                        fontWeight = FontWeight.Bold
                     )
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                TransactionList(result = result)
-            }
-        }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.dismissResults() }) {
+                    Text("OK", color = AccentStart)
+                }
+            },
+            containerColor = Color(0xFF1E1E24),
+            titleContentColor = TextPrimary,
+            textContentColor = TextSecondary
+        )
     }
 }

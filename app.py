@@ -16,7 +16,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', version="1.0.3")
 
 
 @app.route('/upload', methods=['POST'])
@@ -63,11 +63,17 @@ def upload():
                 try:
                     import pdfplumber
                     with pdfplumber.open(input_path, password=password) as pdf:
-                        text = pdf.pages[0].extract_text()
-                        if text:
-                            debug_text = "\n".join(text.split("\n")[:20])
+                        full_text = []
+                        for i, page in enumerate(pdf.pages):
+                            page_text = page.extract_text(x_tolerance=1, y_tolerance=3)
+                            if page_text:
+                                full_text.append(f"--- PAGE {i} ---")
+                                full_text.extend(page_text.split("\n"))
+                        
+                        if full_text:
+                            debug_text = "\n".join(full_text[:40])
                         else:
-                            debug_text = "(The PDF is empty or contains only images with no text layer)"
+                            debug_text = "(PDF is empty or image-only with no text layer)"
                 except Exception as ex:
                     debug_text = f"(Failed to read PDF: {ex})"
             else:
@@ -162,9 +168,15 @@ def reconcile():
             try:
                 import pdfplumber
                 with pdfplumber.open(input_path, password=password) as pdf:
-                    text = pdf.pages[0].extract_text()
-                    if text:
-                        debug_text = "\n".join(text.split("\n")[:20])
+                    full_text = []
+                    for i, page in enumerate(pdf.pages):
+                        page_text = page.extract_text(x_tolerance=1, y_tolerance=3)
+                        if page_text:
+                            full_text.append(f"--- PAGE {i} ---")
+                            full_text.extend(page_text.split("\n"))
+                    
+                    if full_text:
+                        debug_text = "\n".join(full_text[:40])
                     else:
                         debug_text = "(PDF is empty or image-only with no text layer)"
             except Exception as ex:

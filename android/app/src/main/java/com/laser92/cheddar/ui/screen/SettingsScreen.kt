@@ -1,24 +1,26 @@
 package com.laser92.cheddar.ui.screen
 
 import android.app.Activity
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.laser92.cheddar.ui.theme.*
 import com.laser92.cheddar.viewmodel.ParserViewModel
 
@@ -29,22 +31,22 @@ fun SettingsScreen(
     viewModel: ParserViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    
+    val signInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        viewModel.handleSignInResult(result.data)
+    }
 
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            try {
-                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
-                viewModel.handleSignInResult(account.email)
-            } catch (e: Exception) {
-                viewModel.handleSignInResult(null)
-            }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.dismissError()
         }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
@@ -82,20 +84,28 @@ fun SettingsScreen(
                     .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp))
                     .padding(16.dp)
             ) {
-                if (uiState.isSignedIn) {
-                    Column {
-                        Text("Signed in as ${uiState.accountEmail}", color = TextPrimary)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(onClick = { viewModel.signOut() }) {
-                            Text("Sign Out", color = TextPrimary)
+                Column {
+                    if (uiState.isSignedIn) {
+                        Text("Signed in as", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(uiState.accountEmail ?: "Unknown Account", color = TextPrimary, style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.signOut() },
+                            colors = ButtonDefaults.buttonColors(containerColor = BgCardHover, contentColor = Danger)
+                        ) {
+                            Text("Sign Out")
                         }
-                    }
-                } else {
-                    Button(
-                        onClick = { googleSignInLauncher.launch(viewModel.getSignInIntent()) },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentStart)
-                    ) {
-                        Text("Sign in with Google", color = TextPrimary)
+                    } else {
+                        Text("Service Account Active", color = TextPrimary)
+                        Text("Falling back to local service_account.json since you are not signed in.", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { signInLauncher.launch(viewModel.getSignInIntent()) },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentStart, contentColor = Color.White)
+                        ) {
+                            Text("Sign in with Google instead")
+                        }
                     }
                 }
             }
@@ -121,6 +131,61 @@ fun SettingsScreen(
                     unfocusedTextColor = TextPrimary
                 )
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (uiState.isSignedIn) {
+                if (uiState.isLoadingSpreadsheets) {
+                    CircularProgressIndicator(color = AccentStart)
+                } else if (uiState.availableSpreadsheets.isNotEmpty()) {
+                    var expanded by remember { mutableStateOf(false) }
+                    
+                    val selectedSheetName = uiState.availableSpreadsheets.find { it.first == uiState.sheetId }?.second ?: "Or pick from Drive"
+                    
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedSheetName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Pick from your Drive", color = TextSecondary) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentStart,
+                                unfocusedBorderColor = BorderSubtle,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.background(BgCardHover)
+                        ) {
+                            uiState.availableSpreadsheets.forEach { (id, name) ->
+                                DropdownMenuItem(
+                                    text = { Text(name, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    onClick = {
+                                        viewModel.setSheetId(id)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text("No spreadsheets found or failed to load.", color = Danger)
+                    Button(onClick = { viewModel.fetchSpreadsheets() }) {
+                        Text("Retry")
+                    }
+                }
+            } else {
+                Text("Sign in to automatically list your Google Drive spreadsheets.", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }

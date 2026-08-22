@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laser92.cheddar.data.PreferencesManager
 import com.laser92.cheddar.export.XlsxWriter
+import com.laser92.cheddar.drive.DriveRepository
 import com.laser92.cheddar.parser.ImageParser
 import com.laser92.cheddar.parser.PdfParser
 import com.laser92.cheddar.sheets.GoogleAuthManager
@@ -32,6 +33,7 @@ class ParserViewModel @Inject constructor(
     private val sheetsRepository: SheetsRepository,
     private val preferencesManager: PreferencesManager,
     private val authManager: GoogleAuthManager,
+    private val driveRepository: DriveRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -39,13 +41,25 @@ class ParserViewModel @Inject constructor(
     val uiState: StateFlow<ParserUiState> = _uiState.asStateFlow()
 
     init {
-        // Initialize state from auth manager and preferences
         viewModelScope.launch {
-            _uiState.update { 
-                it.copy(
-                    isSignedIn = authManager.isSignedIn(),
-                    accountEmail = authManager.getAccountEmail()
-                )
+            authManager.signedInAccount.collect { account ->
+                _uiState.update { 
+                    it.copy(
+                        isSignedIn = account != null,
+                        accountEmail = account?.email
+                    )
+                }
+                if (account != null) {
+                    fetchSpreadsheets()
+                } else {
+                    _uiState.update { it.copy(availableSpreadsheets = emptyList()) }
+                }
+            }
+        }
+        
+        viewModelScope.launch {
+            preferencesManager.sheetIdFlow.collect { savedSheetId ->
+                _uiState.update { it.copy(sheetId = savedSheetId) }
             }
         }
     }
@@ -60,6 +74,35 @@ class ParserViewModel @Inject constructor(
                 isPdf = isPdf
             )
         }
+    }
+
+    fun fetchSpreadsheets() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingSpreadsheets = true) }
+            try {
+                val files = driveRepository.getSpreadsheets()
+                val list = files.map { Pair(it.id, it.name) }
+                _uiState.update { it.copy(availableSpreadsheets = list, isLoadingSpreadsheets = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to fetch spreadsheets: ${e.message}", isLoadingSpreadsheets = false) }
+            }
+        }
+    }
+
+    fun getSignInIntent(): android.content.Intent {
+        return authManager.getSignInIntent()
+    }
+
+    fun handleSignInResult(intent: android.content.Intent?) {
+        val result = authManager.handleSignInResult(intent)
+        if (result.isFailure) {
+            val exception = result.exceptionOrNull()
+            _uiState.update { it.copy(error = exception?.message ?: "Unknown sign-in error") }
+        }
+    }
+
+    fun signOut() {
+        authManager.signOut()
     }
 
     fun removeFile() {
@@ -89,27 +132,8 @@ class ParserViewModel @Inject constructor(
 
     fun setSheetId(id: String) {
         _uiState.update { it.copy(sheetId = id) }
-        // Note: You could also save this to preferencesManager if it was implemented
-    }
-
-    fun getSignInIntent() = authManager.getSignInIntent()
-
-    fun handleSignInResult(email: String?) {
         viewModelScope.launch {
-            _uiState.update { 
-                it.copy(
-                    isSignedIn = email != null,
-                    accountEmail = email,
-                    success = if (email != null) "Signed in as $email" else "Sign-in failed"
-                )
-            }
-        }
-    }
-
-    fun signOut() {
-        authManager.signOut()
-        _uiState.update { 
-            it.copy(isSignedIn = false, accountEmail = null)
+            preferencesManager.updateSheetId(id)
         }
     }
 
@@ -188,6 +212,9 @@ class ParserViewModel @Inject constructor(
                     }
 
                     val result = sheetsRepository.reconcile(transactions, cardName, sheetId)
+                    if (result.errors > 0) {
+                        throw Exception(result.errorMessages.joinToString("; "))
+                    }
                     _uiState.update { it.copy(success = "Added to Google Sheets!", reconcileResult = result) }
                 }
             } catch (e: Throwable) {
@@ -213,7 +240,7 @@ data class ParserUiState(
     val selectedFileSize: String? = null,
     val isPdf: Boolean = false,
     val password: String = "",
-    val cardName: String = "SBI",
+    val cardName: String = "",
     val style: Int = 1,
     val isProcessing: Boolean = false,
     val processingAction: String? = null,
@@ -223,5 +250,7 @@ data class ParserUiState(
     val reconcileResult: ReconcileResult? = null,
     val isSignedIn: Boolean = false,
     val accountEmail: String? = null,
-    val sheetId: String = "1mmetc8XmMGdY3jsq6OBpc8VwhfP0wdKf-IbmHovtva8"
+    val sheetId: String = "1mmetc8XmMGdY3jsq6OBpc8VwhfP0wdKf-IbmHovtva8",
+    val availableSpreadsheets: List<Pair<String, String>> = emptyList(),
+    val isLoadingSpreadsheets: Boolean = false
 )

@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.laser92.cheddar.ui.theme.*
 
 @Composable
@@ -31,6 +33,7 @@ fun GradientButton(
     gradientEnd: Color = AccentEnd,
     icon: ImageVector? = null
 ) {
+    val haptic = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     
@@ -43,7 +46,12 @@ fun GradientButton(
             .background(brush = brush)
             .alpha(alpha)
             .clickable(
-                onClick = { if (!loading && enabled) onClick() },
+                onClick = { 
+                    if (!loading && enabled) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onClick() 
+                    }
+                },
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = androidx.compose.material3.ripple()
@@ -52,11 +60,7 @@ fun GradientButton(
         contentAlignment = Alignment.Center
     ) {
         if (loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = TextPrimary,
-                strokeWidth = 2.dp
-            )
+            DocumentScannerAnimation(modifier = Modifier.size(24.dp))
         } else {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

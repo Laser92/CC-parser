@@ -47,10 +47,10 @@ class SheetsRepository @Inject constructor(
     }
 
     /**
-     * Format a LocalDate to "July '26" using custom month abbreviations
+     * Format a LocalDateTime to "July '26" using custom month abbreviations
      * Jan, Feb, March, April, May, June, July, Aug, Sept, Oct, Nov, Dec
      */
-    fun getTabName(date: LocalDate): String {
+    fun getTabName(date: LocalDateTime): String {
         val months = arrayOf(
             "", "Jan", "Feb", "March", "April", "May", "June", 
             "July", "Aug", "Sept", "Oct", "Nov", "Dec"
@@ -88,50 +88,79 @@ class SheetsRepository @Inject constructor(
     }
 
     /**
-     * Scans column B for the next empty row. Allows 2 empty gaps, 3+ empty = end.
+     * Scans from the bottom up to find the absolute last row with data in Column A or B.
+     * This safely skips any empty gaps in pre-formatted tables.
      */
     private fun findNextRow(values: List<List<Any>>): Int {
-        var emptyCount = 0
-        var nextRow = 1 // 1-indexed for Sheets API
-        
-        for (i in values.indices) {
-            val row = values[i]
-            val colB = if (row.size > 1) row[1].toString().trim() else ""
-            
-            if (colB.isEmpty()) {
-                emptyCount++
-                if (emptyCount >= 3) {
-                    // Backtrack to the first of the 3 empty rows
-                    return nextRow - 2 
-                }
-            } else {
-                emptyCount = 0
-            }
-            nextRow++
+        if (values.size <= 1) {
+            return 2 // 1-indexed for Sheets API, assume row 1 is header
         }
         
-        return nextRow
+        for (i in values.indices.reversed()) {
+            val row = values[i]
+            val colA = if (row.isNotEmpty()) row[0].toString().trim() else ""
+            val colB = if (row.size > 1) row[1].toString().trim() else ""
+            
+            if (colA.isNotEmpty() || colB.isNotEmpty()) {
+                return i + 2 // i is 0-indexed, API is 1-indexed, +1 for next row = +2
+            }
+        }
+        return 2
     }
 
     /**
      * Basic duplicate check: day-level match and amount tolerance +/- 0.50
      */
+    private fun parseRowDate(rawDate: String): LocalDateTime? {
+        val formats = listOf(
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ofPattern("d/M/yyyy H:m:s"),
+            DateTimeFormatter.ofPattern("d/M/yyyy H:m"),
+            DateTimeFormatter.ofPattern("d/M/yyyy")
+        )
+        for (f in formats) {
+            try {
+                return LocalDateTime.parse(rawDate, f)
+            } catch (e: Exception) {
+                try {
+                    return LocalDate.parse(rawDate, f).atStartOfDay()
+                } catch (ex: Exception) {
+                    // Try next
+                }
+            }
+        }
+        return null
+    }
+
     private fun isDuplicate(
         existingRows: List<List<Any>>, 
-        txnDate: String, 
-        txnAmount: Double
+        txnDate: LocalDateTime, 
+        txnAmount: Double,
+        txnCard: String
     ): Boolean {
         for (row in existingRows) {
-            if (row.size >= 2) {
-                val sheetDate = row[0].toString().trim()
-                val sheetAmountStr = row[1].toString().trim().replace(",", "")
-                
-                if (sheetDate == txnDate) {
-                    val sheetAmount = sheetAmountStr.toDoubleOrNull()
-                    if (sheetAmount != null && abs(sheetAmount - txnAmount) <= 0.50) {
-                        return true
-                    }
-                }
+            if (row.size < 2) continue
+
+            val rawDate = row[0].toString().trim()
+            val rawAmtStr = row[1].toString().trim()
+            val rawCard = row.getOrNull(6)?.toString()?.trim() ?: ""
+
+            if (rawDate.isEmpty() && rawAmtStr.isEmpty()) continue
+
+            // Card compare (ignoring case)
+            if (!rawCard.equals(txnCard, ignoreCase = true)) continue
+
+            // Amount compare
+            val rawAmt = rawAmtStr.replace(",", "").replace(Regex("[^\\d.-]"), "").toDoubleOrNull()
+            if (rawAmt == null || abs(rawAmt - txnAmount) > 0.50) continue
+
+            // Date compare
+            val rowDate = parseRowDate(rawDate) ?: continue
+            val minutesDiff = abs(java.time.Duration.between(txnDate, rowDate).toMinutes())
+            if (minutesDiff <= 5) {
+                return true
             }
         }
         return false
@@ -159,134 +188,122 @@ class SheetsRepository @Inject constructor(
                 // Get or create tab
                 val targetSheetId = getOrCreateTab(service, sheetId, tabName)
 
-                // Read existing data in Column A and B to find next row and check duplicates
-                val range = "$tabName!A:B"
-                val response = service.spreadsheets().values().get(sheetId, range).execute()
-                @Suppress("UNCHECKED_CAST")
-                val values = (response.values as? List<List<Any>>) ?: emptyList()
+                // Escape single quotes for A1 notation (e.g. Aug '26 -> 'Aug ''26')
+                val safeTabName = "'" + tabName.replace("'", "''") + "'"
+                
+                // Fetch the entire sheet's data range to absolutely guarantee we get all populated rows
+                val range = safeTabName
+                val rawResponse = service.spreadsheets().values().get(sheetId, range).executeUnparsed().parseAsString()
+                
+                val jsonObject = org.json.JSONObject(rawResponse)
+                val valuesArray = jsonObject.optJSONArray("values")
+                val parsedValues = mutableListOf<List<Any>>()
+                
+                if (valuesArray != null) {
+                    for (i in 0 until valuesArray.length()) {
+                        val rowArray = valuesArray.optJSONArray(i)
+                        val row = mutableListOf<Any>()
+                        if (rowArray != null) {
+                            for (j in 0 until rowArray.length()) {
+                                row.add(rowArray.getString(j))
+                            }
+                        }
+                        parsedValues.add(row)
+                    }
+                }
+                
+                val values = parsedValues
+                
+                android.util.Log.d("SheetsRepository", "Fetched range: $range, values size: ${values.size}")
                 
                 val startRow = findNextRow(values)
                 var currentRow = startRow
+                
+                android.util.Log.d("SheetsRepository", "Computed startRow: $startRow")
 
                 // Prepare to gather batch data
                 val rowsToAdd = mutableListOf<List<Any>>()
                 val formatRequests = mutableListOf<Request>()
 
-                // Count occurrences of (date_str, round(amt)) in the PDF batch
-                val pdfCounts = txnsInTab.groupingBy { 
-                    val dStr = if (it.time != null) {
-                        java.time.LocalDateTime.of(it.date, it.time).format(dateTimeFormatter)
-                    } else {
-                        it.date.format(dateFormatter)
-                    }
-                    Pair(dStr, round(it.amount)) 
-                }.eachCount()
-
-                // Count occurrences in the sheet
-                val sheetCounts = values.mapNotNull { row ->
-                    if (row.size >= 2) {
-                        val d = row[0].toString().trim()
-                        val a = row[1].toString().trim().replace(",", "").toDoubleOrNull()
-                        if (a != null) Pair(d, round(a)) else null
-                    } else null
-                }.groupingBy { it }.eachCount().toMutableMap()
-
                 for (txn in txnsInTab) {
-                    val dateStr = if (txn.time != null) {
-                        java.time.LocalDateTime.of(txn.date, txn.time).format(dateTimeFormatter)
-                    } else {
+                    val dateStr = if (txn.date.hour == 0 && txn.date.minute == 0) {
                         txn.date.format(dateFormatter)
-                    }
-                    val roundedAmt = round(txn.amount)
-                    val matchKey = Pair(dateStr, roundedAmt)
-                    
-                    val pCount = pdfCounts[matchKey] ?: 0
-                    val sCount = sheetCounts[matchKey] ?: 0
-
-                    var isDup = false
-                    if (pCount <= 2) {
-                        // If 2 or fewer identical transactions in PDF, normal duplicate check
-                        isDup = isDuplicate(values, dateStr, txn.amount)
                     } else {
-                        // If more than 2, check if we've already satisfied the sheet count
-                        if (sCount >= pCount) {
-                            isDup = true
-                        } else {
-                            // Increment sheet count to allow adding the missing ones
-                            sheetCounts[matchKey] = sCount + 1
-                        }
+                        txn.date.format(dateTimeFormatter)
                     }
 
-                    val summary = TransactionSummary(
-                        dateStr, txn.remark, txn.amount, cardName
-                    )
+                    val catAndCard = categoryMapper.applyCategories(txn.remark)
+                    val category = catAndCard.first
+                    val finalCard = if (catAndCard.second.isNotEmpty()) catAndCard.second else cardName
+
+                    val isDup = isDuplicate(values, txn.date, txn.amount, finalCard)
 
                     if (isDup) {
-                        skippedTxns.add(summary)
-                        continue
-                    }
+                        skippedTxns.add(
+                            TransactionSummary(
+                                date = dateStr,
+                                amount = txn.amount,
+                                merchant = txn.remark,
+                                card = finalCard
+                            )
+                        )
+                    } else {
+                        val rowData = listOf(
+                            dateStr,
+                            txn.amount,
+                            txn.amount,
+                            0,
+                            txn.remark,
+                            category,
+                            finalCard
+                        )
+                        rowsToAdd.add(rowData)
+                        addedTxns.add(
+                            TransactionSummary(
+                                date = dateStr,
+                                amount = txn.amount,
+                                merchant = txn.remark,
+                                card = finalCard
+                            )
+                        )
 
-                    // Apply categories based on remark
-                    val (category, autoCard) = categoryMapper.applyCategories(txn.remark)
-                    val finalCard = if (autoCard.isNotEmpty()) autoCard else cardName
-
-                    // A: Date, B: Amount, C: blank, D: Formula, E: Merchant, F: Category, G: Card
-                    val excelRow = currentRow
-                    val formula = "=IF(B$excelRow<>\"\", B$excelRow-C$excelRow, \"\")"
-                    
-                    rowsToAdd.add(listOf(
-                        dateStr, 
-                        txn.amount, 
-                        "", 
-                        formula, 
-                        txn.remark, 
-                        category, 
-                        finalCard
-                    ))
-
-                    // Apply Lexend formatting and borders (Request formulation)
-                    val cellFormat = CellFormat().setTextFormat(TextFormat().setFontFamily("Lexend"))
-                    val rowRange = GridRange()
-                        .setSheetId(targetSheetId)
-                        .setStartRowIndex(currentRow - 1)
-                        .setEndRowIndex(currentRow)
-                        .setStartColumnIndex(0)
-                        .setEndColumnIndex(7)
-
-                    formatRequests.add(Request().setRepeatCell(
-                        RepeatCellRequest()
-                            .setRange(rowRange)
-                            .setCell(CellData().setUserEnteredFormat(cellFormat))
-                            .setFields("userEnteredFormat.textFormat.fontFamily")
-                    ))
-                    
-                    // Note: Copying Data Validation from row above can be complex in batch requests.
-                    // Assuming basic formatting here, but you can expand `formatRequests` with 
-                    // `CopyPasteRequest` to duplicate data validations from `currentRow - 2`.
-                    if (currentRow > 2) {
-                        val sourceRange = GridRange()
-                            .setSheetId(targetSheetId)
-                            .setStartRowIndex(currentRow - 2)
-                            .setEndRowIndex(currentRow - 1)
-                            .setStartColumnIndex(0)
-                            .setEndColumnIndex(7)
+                        // If you want dropdowns, we add DataValidation formatting here...
+                        val validationReq = Request().setRepeatCell(
+                            RepeatCellRequest()
+                                .setRange(GridRange().setSheetId(targetSheetId).setStartRowIndex(currentRow - 1).setEndRowIndex(currentRow).setStartColumnIndex(6).setEndColumnIndex(7))
+                                .setCell(CellData()
+                                    .setDataValidation(
+                                        DataValidationRule()
+                                            .setCondition(BooleanCondition().setType("ONE_OF_LIST").setValues(
+                                                listOf(
+                                                    ConditionValue().setUserEnteredValue("HDFC Rupay"),
+                                                    ConditionValue().setUserEnteredValue("SBI"),
+                                                    ConditionValue().setUserEnteredValue("ICICI"),
+                                                    ConditionValue().setUserEnteredValue("Axis"),
+                                                    ConditionValue().setUserEnteredValue("Amex")
+                                                )
+                                            ))
+                                            .setShowCustomUi(true)
+                                            .setStrict(true)
+                                    )
+                                    .setUserEnteredFormat(com.google.api.services.sheets.v4.model.CellFormat()
+                                        .setTextFormat(com.google.api.services.sheets.v4.model.TextFormat().setFontFamily("Lexend"))
+                                    )
+                                )
+                                .setFields("dataValidation,userEnteredFormat.textFormat.fontFamily")
+                        )
+                        formatRequests.add(validationReq)
                         
-                        formatRequests.add(Request().setCopyPaste(
-                            CopyPasteRequest()
-                                .setSource(sourceRange)
-                                .setDestination(rowRange)
-                                .setPasteType("PASTE_DATA_VALIDATION")
-                        ))
+                        currentRow++
                     }
-
-                    addedTxns.add(summary)
-                    currentRow++
                 }
 
                 // Batch write values
                 if (rowsToAdd.isNotEmpty()) {
                     val body = ValueRange().setValues(rowsToAdd)
-                    val updateRange = "$tabName!A$startRow:G${currentRow - 1}"
+                    val updateRange = "$safeTabName!A$startRow:G${currentRow - 1}"
+                    
+                    android.util.Log.d("SheetsRepository", "Updating range: $updateRange with ${rowsToAdd.size} rows")
                     
                     service.spreadsheets().values()
                         .update(sheetId, updateRange, body)

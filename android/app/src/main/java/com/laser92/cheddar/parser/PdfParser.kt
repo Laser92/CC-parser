@@ -35,6 +35,7 @@ class PdfParser @Inject constructor(
             
             document.use { doc ->
                 val stripper = PDFTextStripper()
+                stripper.sortByPosition = true
                 val text = stripper.getText(doc)
                 val lines = text.lines()
                 transactionParser.parseLinesToTransactions(lines)

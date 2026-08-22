@@ -31,7 +31,7 @@ class PreferencesManager @Inject constructor(
     }
 
     val defaultCardNameFlow: Flow<String> = dataStore.data.map { preferences ->
-        preferences[DEFAULT_CARD_NAME] ?: "SBI"
+        preferences[DEFAULT_CARD_NAME] ?: ""
     }
 
     val defaultStyleFlow: Flow<Int> = dataStore.data.map { preferences ->

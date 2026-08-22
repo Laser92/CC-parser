@@ -3,6 +3,7 @@ package com.laser92.cheddar.ui.component
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,12 +16,16 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.laser92.cheddar.ui.theme.*
 
 @Composable
@@ -31,6 +36,7 @@ fun FilePicker(
     onRemoveFile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     val isSelected = selectedFileName != null
 
     AnimatedContent(
@@ -74,7 +80,10 @@ fun FilePicker(
                             )
                         }
                     }
-                    IconButton(onClick = onRemoveFile) {
+                    IconButton(onClick = { 
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onRemoveFile() 
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Remove file",
@@ -84,14 +93,38 @@ fun FilePicker(
                 }
             }
         } else {
+            val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
+            val scale by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.02f,
+                animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                    animation = androidx.compose.animation.core.tween(1000),
+                    repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                ),
+                label = "scale"
+            )
+            val alpha by infiniteTransition.animateFloat(
+                initialValue = 0.5f,
+                targetValue = 1f,
+                animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                    animation = androidx.compose.animation.core.tween(1000),
+                    repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                ),
+                label = "alpha"
+            )
+
             Box(
                 modifier = modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(BgCard)
-                    .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp))
-                    .clickable(onClick = onFileClick)
-                    .padding(32.dp),
+                    .scale(scale)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(AccentStart.copy(alpha = 0.08f))
+                    .border(1.dp, AccentStart.copy(alpha = 0.3f * alpha), RoundedCornerShape(24.dp))
+                    .clickable(onClick = { 
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onFileClick() 
+                    })
+                    .padding(48.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(

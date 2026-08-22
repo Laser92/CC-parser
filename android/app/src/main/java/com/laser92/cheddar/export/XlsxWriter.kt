@@ -98,10 +98,10 @@ class XlsxWriter @Inject constructor() {
             
             // Column A: Date
             val dateCell = row.createCell(0)
-            val dateStr = if (txn.time != null) {
-                java.time.LocalDateTime.of(txn.date, txn.time).format(dateTimeFormatter)
-            } else {
+            val dateStr = if (txn.date.hour == 0 && txn.date.minute == 0) {
                 txn.date.format(dateFormatter)
+            } else {
+                txn.date.format(dateTimeFormatter)
             }
             dateCell.setCellValue(dateStr)
             dateCell.cellStyle = currentDataStyle

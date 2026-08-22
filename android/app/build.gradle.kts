@@ -14,8 +14,8 @@ android {
         applicationId = "com.laser92.cheddar"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 20
+        versionName = "1.3.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.navigation.compose)
@@ -76,6 +77,7 @@ dependencies {
     implementation(libs.poi.ooxml)
 
     implementation(libs.google.api.services.sheets)
+    implementation(libs.google.api.services.drive)
     implementation(libs.google.api.client.android)
     implementation(libs.google.http.client.gson)
 
@@ -85,6 +87,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.20.0")
 
     implementation(libs.androidx.datastore.preferences)
 

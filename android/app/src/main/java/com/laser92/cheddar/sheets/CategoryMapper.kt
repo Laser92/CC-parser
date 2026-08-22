@@ -69,10 +69,10 @@ class CategoryMapper @Inject constructor() {
         val lowerMerchant = merchant.lowercase()
         for ((keyword, category) in remarkToCategory) {
             if (lowerMerchant.contains(keyword)) {
-                val card = categoryToCard[category] ?: "SBI"
+                val card = categoryToCard[category] ?: ""
                 return Pair(category, card)
             }
         }
-        return Pair("", "SBI")
+        return Pair("", "")
     }
 }

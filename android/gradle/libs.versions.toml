@@ -11,7 +11,9 @@ ksp = "2.1.0-1.0.29"
 pdfbox = "2.0.27.0"
 mlkit = "16.0.1"
 poi = "5.3.0"
+google-fonts = "1.7.0"
 google-sheets = "v4-rev20241008-2.0.0"
+google-drive = "v3-rev20230822-2.0.0"
 google-api-client = "2.7.0"
 google-http-client = "1.45.1"
 play-services-auth = "21.3.0"
@@ -30,6 +32,7 @@ androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "google-fonts" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
@@ -39,6 +42,7 @@ pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkit" }
 poi-ooxml = { group = "org.apache.poi", name = "poi-ooxml", version.ref = "poi" }
 google-api-services-sheets = { group = "com.google.apis", name = "google-api-services-sheets", version.ref = "google-sheets" }
+google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "google-drive" }
 google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "google-api-client" }
 google-http-client-gson = { group = "com.google.http-client", name = "google-http-client-gson", version.ref = "google-http-client" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "play-services-auth" }

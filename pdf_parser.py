@@ -114,6 +114,14 @@ FORMAT2_RE = re.compile(
     r"([+-]?)\s*(?:₹|C|c|€|E)?\s*([\d,]+\.\d{2})\b.*$"  # sign and amount (allow trailing garbage, handle OCR hallucinating C instead of ₹)
 )
 
+# Format 3 (Scapia Federal Bank):
+# 07-08-2026 - 21:00 Amazon ₹166.98 17
+# VISA 07-08-2026 - 21:00 Amazon ₹166.98 17
+# 18-08-2026 - 18:51 Www Loungeone Ai Ahmedabad In Refund +₹2.00
+FORMAT3_RE = re.compile(
+    r"^(?:VISA\s*|RuPay\s*|MasterCard\s*)?(\d{2}[-./]\d{2}[-./]\d{4}\s*[^\d\w\s]\s*\d{2}:\d{2})\s*(.+?)\s*(?:Refund\s*)?([+\-\uFF0B\u2212]?)\s*(?:[^\w\s\d]+\s*)?([\d,]+\.\d{2})\b.*$"
+)
+
 # Lines to skip (headers, footers, section titles, etc.)
 SKIP_PATTERNS = [
     re.compile(r"(?i)^\s*date\s+transaction\s+details", re.IGNORECASE),
@@ -150,6 +158,15 @@ def parse_date_format2(date_str: str) -> datetime:
     clean_str = date_str.replace('|', '').strip()
     clean_str = re.sub(r'\s+', ' ', clean_str)
     return datetime.strptime(clean_str, "%d/%m/%Y %H:%M")
+
+
+def parse_date_format3(date_str: str) -> datetime:
+    """Parse date string like '07-08-2026 - 21:00' or '07-08-2026 · 21:00' into a datetime object."""
+    match = re.search(r'(\d{2})[-./](\d{2})[-./](\d{4}).*?(\d{2}):(\d{2})', date_str)
+    if match:
+        d, m, y, h, minute = match.groups()
+        return datetime(int(y), int(m), int(d), int(h), int(minute))
+    raise ValueError(f"Invalid date format: {date_str}")
 
 
 def clean_amount(amount_str: str) -> float:
@@ -237,8 +254,11 @@ def parse_lines_to_transactions(lines: list[str], use_ocr_regex: bool = False) -
         
         # Check against Format 2 if standard format didn't match
         match2 = None
+        match3 = None
         if not match:
             match2 = FORMAT2_RE.match(line)
+        if not match and not match2:
+            match3 = FORMAT3_RE.match(line)
             
         if match:
             date_str = match.group(1)
@@ -273,22 +293,44 @@ def parse_lines_to_transactions(lines: list[str], use_ocr_regex: bool = False) -
         elif match2:
             date_str = match2.group(1)
             description = match2.group(2).strip()
-            sign = match2.group(3).strip()
+            sign = match2.group(3)
             amount_str = match2.group(4)
-            
-            # '+' indicates a Credit, otherwise Debit
-            txn_type = "C" if sign == "+" else "D"
             
             try:
                 amt = clean_amount(amount_str)
-                if txn_type == "C":
+                is_credit = sign in ['+', '＋']
+                if is_credit:
                     amt = -amt
                     
                 txn = {
                     "date": parse_date_format2(date_str),
                     "description": description,
                     "amount": amt,
-                    "type": txn_type,
+                    "type": "C" if is_credit else "D",
+                    "remark": description,
+                }
+                transactions.append(txn)
+            except ValueError:
+                continue
+                
+        elif match3:
+            date_str = match3.group(1)
+            description = match3.group(2).strip()
+            sign = match3.group(3)
+            amount_str = match3.group(4)
+            
+            try:
+                amt = clean_amount(amount_str)
+                is_credit = sign in ['+', '＋'] or 'refund' in line.lower()
+                
+                if is_credit:
+                    amt = -amt
+                    
+                txn = {
+                    "date": parse_date_format3(date_str),
+                    "description": description,
+                    "amount": amt,
+                    "type": "C" if is_credit else "D",
                     "remark": description,
                 }
                 transactions.append(txn)
@@ -316,7 +358,11 @@ def extract_transactions_from_pdf(pdf_path: str, password: str = None) -> list[d
     
     with pdfplumber.open(pdf_path, **open_kwargs) as pdf:
         for page in pdf.pages:
-            text = page.extract_text()
+            # layout=True can sometimes fail or squish text on certain PDFs. 
+            # Using strict x_tolerance forces spaces between columns.
+            text = page.extract_text(x_tolerance=1, y_tolerance=3)
+            if not text:
+                text = page.extract_text() # fallback
             if not text:
                 continue
             all_lines.extend(text.split("\n"))
