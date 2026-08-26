@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CC Statement Parser</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='12' width='64' height='64' fill='%236366f1'/%3E%3Cpath d='M20 16h24M20 24h24M20 16v4h10c4 0 7 3 7 7s-3 7-7 7H20' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M34 34l-14 14' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+    <title>Cheddar — CC Statement Parser</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,21 +17,22 @@
 
         :root {
             color-scheme: dark;
-            --bg-primary: #0a0a0f;
-            --bg-card: rgba(255, 255, 255, 0.03);
-            --bg-card-hover: rgba(255, 255, 255, 0.05);
-            --border-subtle: rgba(255, 255, 255, 0.06);
-            --border-focus: rgba(99, 102, 241, 0.5);
-            --text-primary: #f1f1f4;
-            --text-secondary: #a1a1aa;
-            --text-muted: #6b6b76;
-            --accent-start: #6366f1;
-            --accent-end: #8b5cf6;
-            --accent-glow: rgba(99, 102, 241, 0.15);
+            --bg-primary: #1a1714;
+            --bg-card: rgba(255, 200, 60, 0.06);
+            --bg-card-hover: rgba(255, 200, 60, 0.10);
+            --bg-glass: rgba(40, 35, 25, 0.65);
+            --border-subtle: rgba(255, 193, 37, 0.15);
+            --border-focus: rgba(255, 166, 0, 0.5);
+            --text-primary: #fef9e7;
+            --text-secondary: #e0b85c;
+            --text-muted: #9a7d42;
+            --accent-start: #f59e0b;
+            --accent-end: #f97316;
+            --accent-glow: rgba(245, 158, 11, 0.18);
             --danger: #ef4444;
             --danger-bg: rgba(239, 68, 68, 0.08);
             --danger-border: rgba(239, 68, 68, 0.2);
-            --success: #22c55e;
+            --success: #84cc16;
         }
 
         body {
@@ -93,7 +94,7 @@
             border-radius: 16px;
             background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
             margin-bottom: 1.5rem;
-            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
+            box-shadow: 0 8px 32px rgba(245, 158, 11, 0.25);
             position: relative;
         }
 
@@ -108,7 +109,7 @@
             position: absolute;
             inset: -1px;
             border-radius: 17px;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.4));
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.4), rgba(249, 115, 22, 0.4));
             z-index: -1;
             filter: blur(12px);
         }
@@ -133,17 +134,224 @@
             font-weight: 400;
         }
 
+        /* Settings Button */
+        .settings-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            z-index: 2;
+        }
+        .settings-btn:hover {
+            color: var(--accent-start);
+            border-color: var(--accent-start);
+            background: var(--accent-glow);
+        }
+        .settings-btn svg { width: 18px; height: 18px; }
+
+        /* Settings Modal */
+        .settings-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .settings-overlay.active { display: flex; }
+
+        .settings-modal {
+            background: #252017;
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 520px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+            backdrop-filter: blur(40px);
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+        .settings-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .settings-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .settings-close:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+        .settings-close svg { width: 16px; height: 16px; }
+
+        .col-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+        .col-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: rgba(255, 200, 60, 0.04);
+            border: 1px solid rgba(255, 193, 37, 0.08);
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+        .col-row:hover {
+            border-color: var(--border-subtle);
+            background: rgba(255, 200, 60, 0.08);
+        }
+
+        .col-letter {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--accent-glow);
+            color: var(--accent-start);
+            font-weight: 700;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .col-type-select, .col-label-input, .col-formula-input {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8125rem;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 193, 37, 0.1);
+            border-radius: 8px;
+            padding: 0.5rem 0.6rem;
+            color: var(--text-primary);
+            transition: border-color 0.2s;
+        }
+        .col-type-select:focus, .col-label-input:focus, .col-formula-input:focus {
+            outline: none;
+            border-color: var(--accent-start);
+        }
+        .col-type-select { width: 110px; flex-shrink: 0; }
+        .col-type-select option { background: #252017; color: var(--text-primary); }
+        .col-label-input { flex: 1; min-width: 0; }
+        .col-formula-input { flex: 1; min-width: 0; font-family: monospace; font-size: 0.75rem; }
+
+        .col-delete {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .col-delete:hover { color: var(--danger); background: var(--danger-bg); }
+        .col-delete svg { width: 14px; height: 14px; }
+
+        .col-add-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.625rem;
+            margin-top: 0.5rem;
+            border: 1.5px dashed rgba(255, 193, 37, 0.2);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .col-add-btn:hover {
+            border-color: var(--accent-start);
+            color: var(--accent-start);
+            background: var(--accent-glow);
+        }
+        .col-add-btn svg { width: 16px; height: 16px; }
+
+        .settings-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 193, 37, 0.08);
+        }
+        .settings-reset {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .settings-reset:hover { color: var(--danger); }
+
+        .settings-save {
+            padding: 0.5rem 1.5rem;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            color: #1a1714;
+            font-weight: 600;
+            font-size: 0.875rem;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .settings-save:hover { opacity: 0.9; transform: translateY(-1px); }
+
         /* Card */
         .card {
-            background: var(--bg-card);
+            background: var(--bg-glass);
             border: 1px solid var(--border-subtle);
             border-radius: 20px;
             padding: 2rem;
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            backdrop-filter: blur(40px) saturate(1.5);
+            -webkit-backdrop-filter: blur(40px) saturate(1.5);
             box-shadow:
-                0 0 0 1px rgba(255, 255, 255, 0.02) inset,
-                0 24px 64px -16px rgba(0, 0, 0, 0.5);
+                0 0 0 1px rgba(255, 200, 60, 0.05) inset,
+                0 24px 64px -16px rgba(0, 0, 0, 0.4);
             transition: border-color 0.3s ease;
         }
 
@@ -851,19 +1059,23 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="logo-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="5" width="20" height="14" rx="2"/>
-                    <line x1="2" y1="10" x2="22" y2="10"/>
-                </svg>
+            <div class="logo-icon" style="background: none; box-shadow: none;">
+                <img src="/static/favicon.png" alt="Cheddar" style="width: 56px; height: 56px; object-fit: contain;">
             </div>
-            <h1>CC Statement Parser <span style="font-size: 0.4em; background: #6366f1; color: white; padding: 2px 8px; border-radius: 12px; vertical-align: middle;">v{{ version }}</span></h1>
+            <h1>Cheddar <span style="font-size: 0.4em; background: #f59e0b; color: #0f0d08; padding: 2px 8px; border-radius: 12px; vertical-align: middle; font-weight: 700;">v{{ version }}</span></h1>
             <p>Parse credit card PDF statements or screenshots into structured XLSX files</p>
         </div>
 
         <!-- Main Card -->
-        <div class="card">
+        <div class="card" style="position: relative;">
+            <button class="settings-btn" id="settingsBtn" title="Column Settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+            </button>
             <form id="uploadForm" enctype="multipart/form-data">
+                <input type="hidden" name="columns" id="columnsInput">
 
                 <!-- Dropzone -->
                 <div class="dropzone" id="dropzone">
@@ -1032,14 +1244,155 @@
             </div>
         </div>
 
+    <!-- Settings Modal -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-modal">
+            <div class="settings-header">
+                <h2>⚙️ Column Settings</h2>
+                <button class="settings-close" id="settingsClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 1rem;">Define the columns for your XLSX downloads and Google Sheets uploads.</p>
+            <div class="col-list" id="colList"></div>
+            <button class="col-add-btn" id="colAddBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                Add Column
+            </button>
+            <div class="settings-actions">
+                <button class="settings-reset" id="settingsReset">Reset to Default</button>
+                <button class="settings-save" id="settingsSave">Save</button>
+            </div>
+        </div>
+    </div>
+
         <!-- Footer -->
         <div class="footer">
-            Powered by AI &middot; Secure &amp; Private
+            Cheddar v{{ version }} &middot; Secure &amp; Private
         </div>
     </div>
 
     <script>
         (() => {
+            // ── Column Settings ──────────────────────────────────
+            const DEFAULT_COLUMNS = [
+                { type: 'date', label: 'Date', formula: '' },
+                { type: 'amount', label: 'Amount', formula: '' },
+                { type: 'remark', label: 'Remark', formula: '' },
+            ];
+            const COL_TYPES = [
+                { value: 'date', label: 'Date' },
+                { value: 'amount', label: 'Amount' },
+                { value: 'remark', label: 'Remark' },
+                { value: 'card', label: 'Card' },
+                { value: 'category', label: 'Category' },
+                { value: 'my_share', label: 'My Share' },
+                { value: 'nitt_share', label: 'Nitt Share' },
+                { value: 'custom', label: 'Custom Formula' },
+            ];
+
+            function loadColumns() {
+                try {
+                    const saved = localStorage.getItem('cheddar_columns');
+                    if (saved) return JSON.parse(saved);
+                } catch (e) {}
+                return JSON.parse(JSON.stringify(DEFAULT_COLUMNS));
+            }
+
+            function saveColumns(cols) {
+                localStorage.setItem('cheddar_columns', JSON.stringify(cols));
+            }
+
+            function colLetter(i) { return String.fromCharCode(65 + i); }
+
+            function renderColumns() {
+                const list = document.getElementById('colList');
+                const cols = loadColumns();
+                list.innerHTML = '';
+                cols.forEach((col, i) => {
+                    const row = document.createElement('div');
+                    row.className = 'col-row';
+                    const isCustom = col.type === 'custom';
+                    row.innerHTML = `
+                        <div class="col-letter">${colLetter(i)}</div>
+                        <select class="col-type-select" data-idx="${i}">
+                            ${COL_TYPES.map(t => `<option value="${t.value}" ${t.value === col.type ? 'selected' : ''}>${t.label}</option>`).join('')}
+                        </select>
+                        <input class="col-label-input" value="${col.label}" data-idx="${i}" placeholder="Header name">
+                        ${isCustom ? `<input class="col-formula-input" value="${col.formula || ''}" data-idx="${i}" placeholder="=IF(B{row}<>0,...)">` : ''}
+                        <button class="col-delete" data-idx="${i}" title="Remove column">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                        </button>
+                    `;
+                    list.appendChild(row);
+                });
+
+                // Attach event listeners
+                list.querySelectorAll('.col-type-select').forEach(sel => {
+                    sel.addEventListener('change', (e) => {
+                        const idx = parseInt(e.target.dataset.idx);
+                        const cols = loadColumns();
+                        const newType = e.target.value;
+                        cols[idx].type = newType;
+                        // Auto-update label to match type name
+                        const typeObj = COL_TYPES.find(t => t.value === newType);
+                        if (typeObj && cols[idx].label === '' || cols[idx].label === COL_TYPES.find(t => t.value !== newType)?.label) {
+                            cols[idx].label = typeObj.label;
+                        }
+                        if (newType !== 'custom') cols[idx].formula = '';
+                        saveColumns(cols);
+                        renderColumns();
+                    });
+                });
+                list.querySelectorAll('.col-label-input').forEach(inp => {
+                    inp.addEventListener('input', (e) => {
+                        const cols = loadColumns();
+                        cols[parseInt(e.target.dataset.idx)].label = e.target.value;
+                        saveColumns(cols);
+                    });
+                });
+                list.querySelectorAll('.col-formula-input').forEach(inp => {
+                    inp.addEventListener('input', (e) => {
+                        const cols = loadColumns();
+                        cols[parseInt(e.target.dataset.idx)].formula = e.target.value;
+                        saveColumns(cols);
+                    });
+                });
+                list.querySelectorAll('.col-delete').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const cols = loadColumns();
+                        cols.splice(parseInt(e.currentTarget.dataset.idx), 1);
+                        saveColumns(cols);
+                        renderColumns();
+                    });
+                });
+            }
+
+            // Settings modal open/close
+            document.getElementById('settingsBtn').addEventListener('click', () => {
+                document.getElementById('settingsOverlay').classList.add('active');
+                renderColumns();
+            });
+            document.getElementById('settingsClose').addEventListener('click', () => {
+                document.getElementById('settingsOverlay').classList.remove('active');
+            });
+            document.getElementById('settingsOverlay').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+            });
+            document.getElementById('colAddBtn').addEventListener('click', () => {
+                const cols = loadColumns();
+                cols.push({ type: 'remark', label: 'Remark', formula: '' });
+                saveColumns(cols);
+                renderColumns();
+            });
+            document.getElementById('settingsReset').addEventListener('click', () => {
+                localStorage.removeItem('cheddar_columns');
+                renderColumns();
+            });
+            document.getElementById('settingsSave').addEventListener('click', () => {
+                document.getElementById('settingsOverlay').classList.remove('active');
+            });
+
             // Elements
             const dropzone = document.getElementById('dropzone');
             const fileInput = document.getElementById('fileInput');
@@ -1211,6 +1564,7 @@
                 setLoading(submitBtn, true, 'Download XLSX');
 
                 const formData = new FormData();
+                formData.set('columns', JSON.stringify(loadColumns()));
                 formData.append('file', fileInput.files[0]);
                 formData.append('card_name', document.getElementById('cardNameInput').value || 'SBI');
                 formData.append('style', document.getElementById('styleSelect').value || '1');
@@ -1287,6 +1641,7 @@
                 setLoading(reconcileBtn, true, 'Add to Sheets');
 
                 const formData = new FormData();
+                formData.set('columns', JSON.stringify(loadColumns()));
                 formData.append('file', fileInput.files[0]);
                 formData.append('card_name', document.getElementById('cardNameInput').value || 'SBI');
 

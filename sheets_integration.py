@@ -245,7 +245,7 @@ def _is_duplicate(existing_rows: list[list], txn_date: datetime, txn_amount: flo
 # Main reconciliation entry-point
 # ---------------------------------------------------------------------------
 
-def reconcile(transactions: list[dict], card_name: str) -> dict:
+def reconcile(transactions: list[dict], card_name: str, columns: list[dict] = None) -> dict:
     """
     Compare *transactions* (from pdf_parser) against the Google Sheet.
     Append only the ones that don't already exist.
@@ -365,15 +365,45 @@ def reconcile(transactions: list[dict], card_name: str) -> dict:
                     formatted_date = date.strftime('%d/%m/%Y')
                 else:
                     formatted_date = date.strftime('%d/%m/%Y %H:%M')
-                row = [
-                    formatted_date,     # A  Date
-                    amount,             # B  Amount
-                    amount,             # C  My Share  (default = full amount)
-                    0,                  # D  Nitt Share (default = 0)
-                    merchant,           # E  Remark
-                    category,           # F  Category
-                    final_card,         # G  Card
-                ]
+                
+                # Build row dynamically based on column config
+                if columns:
+                    row = []
+                    for col_def in columns:
+                        col_type = col_def.get('type', '')
+                        if col_type == 'date':
+                            row.append(formatted_date)
+                        elif col_type == 'amount':
+                            row.append(amount)
+                        elif col_type == 'remark':
+                            row.append(merchant)
+                        elif col_type == 'card':
+                            row.append(final_card)
+                        elif col_type == 'category':
+                            row.append(category)
+                        elif col_type == 'my_share':
+                            row.append(amount)
+                        elif col_type == 'nitt_share':
+                            row.append(0)
+                        elif col_type == 'custom':
+                            formula = col_def.get('formula', '')
+                            # {row} will be replaced after we know the actual row number
+                            row.append(formula)
+                        else:
+                            row.append('')
+                    last_col_letter = chr(64 + len(columns))
+                else:
+                    row = [
+                        formatted_date,     # A  Date
+                        amount,             # B  Amount
+                        amount,             # C  My Share  (default = full amount)
+                        0,                  # D  Nitt Share (default = 0)
+                        merchant,           # E  Remark
+                        category,           # F  Category
+                        final_card,         # G  Card
+                    ]
+                    last_col_letter = 'G'
+                
                 rows_to_add.append(row)
                 added_details.append({
                     'date':     formatted_date,
@@ -391,7 +421,16 @@ def reconcile(transactions: list[dict], card_name: str) -> dict:
             if rows_to_add:
                 start_row = _find_next_row(worksheet)
                 end_row   = start_row + len(rows_to_add) - 1
-                cell_range = f'A{start_row}:G{end_row}'
+                
+                # Replace {row} placeholders in custom formulas
+                if columns:
+                    for r_idx, row in enumerate(rows_to_add):
+                        actual_row = start_row + r_idx
+                        for c_idx, cell_val in enumerate(row):
+                            if isinstance(cell_val, str) and '{row}' in cell_val:
+                                rows_to_add[r_idx][c_idx] = cell_val.replace('{row}', str(actual_row))
+                
+                cell_range = f'A{start_row}:{last_col_letter}{end_row}'
 
                 worksheet.update(
                     cell_range,

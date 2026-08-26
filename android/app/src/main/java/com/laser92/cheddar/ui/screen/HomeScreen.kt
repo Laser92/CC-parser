@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laser92.cheddar.ui.component.FilePicker
 import com.laser92.cheddar.ui.component.GradientButton
+import com.laser92.cheddar.ui.component.DocumentScannerAnimation
 import com.laser92.cheddar.ui.component.StatCard
 import com.laser92.cheddar.ui.component.TransactionList
 import com.laser92.cheddar.ui.theme.*
@@ -250,6 +251,38 @@ fun HomeScreen(
             }
 
             // Removed inline Results Section; it is now a popup dialog.
+        }
+    }
+
+    // Scanning Overlay Popup
+    if (uiState.isProcessing) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { /* non-dismissable while processing */ },
+            properties = androidx.compose.ui.window.DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(Color(0xFF1A1A22))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(32.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    DocumentScannerAnimation(modifier = Modifier.size(80.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text(
+                        text = if (uiState.processingAction == "xlsx") "Parsing..." else "Uploading...",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary
+                    )
+                }
+            }
         }
     }
 

@@ -19,7 +19,7 @@ class TransactionParser @Inject constructor(
     private val TRANSACTION_RE = Regex("^(\\d{2}\\s+\\w{3}\\s+\\d{2})\\s+(.+?)\\s+([+\\-\\uFF0B\\u2212]?)\\s*(?:₹|Rs\\.?|INR|€|E|\\$)?\\s*([\\d,]+\\.\\d{2})\\s*([CDcd][rR]?\\.?)?\\s*$")
     private val TRANSACTION_OCR_RE = Regex("^(\\d{2}\\s+\\w{3}\\s+\\d{2})\\s+(.+?)\\s+([+\\-\\uFF0B\\u2212]?)\\s*(?:₹|Rs\\.?|INR|€|E|\\$)?\\s*([\\d,]+\\.\\d{2})\\s*([CDcd][rR]?\\.?)?\\s*$")
     private val FORMAT2_RE = Regex("^(\\d{2}/\\d{2}/\\d{4}\\s*(?:\\|)?\\s*\\d{2}:\\d{2})\\s+(.+?)\\s+(?:(?:[+\\-\\uFF0B\\u2212]\\s*)?\\d+\\s+)?([+\\-\\uFF0B\\u2212]?)\\s*(?:₹|Rs\\.?|INR|C|c|€|E)?\\s*([\\d,]+\\.\\d{2})\\b.*$")
-    private val FORMAT3_RE = Regex("^(?:VISA\\s+|RuPay\\s+|MasterCard\\s+)?(\\d{2}-\\d{2}-\\d{4}\\s*-\\s*\\d{2}:\\d{2})\\s+(.+?)\\s+(?:Refund\\s+)?([+\\-\\uFF0B\\u2212]?)\\s*(?:[^\\w\\s\\d]+\\s*)?([\\d,]+\\.\\d{2})\\b.*$")
+    private val FORMAT3_RE = Regex("^(?:VISA\\s*|RuPay\\s*|MasterCard\\s*)?(\\d{2}[-./]\\d{2}[-./]\\d{4}\\s*[^\\d\\w\\s]\\s*\\d{2}:\\d{2})\\s*(.+?)\\s*(?:Refund\\s*)?([+\\-\\uFF0B\\u2212]?)\\s*(?:[^\\w\\s\\d]+\\s*)?(\\d[\\d,]*\\.\\d{2})\\b.*$")
 
     private val SKIP_PATTERNS = listOf(
         "Date Transaction Details", "For Statement Period", "Statement Period",
@@ -51,12 +51,12 @@ class TransactionParser @Inject constructor(
         return LocalDateTime.parse(cleanStr, formatter)
     }
 
-    private fun parseDateFormat3(dateStr: String): LocalDate {
+    private fun parseDateFormat3(dateStr: String): LocalDateTime {
         val regex = Regex("""(\d{2})[-./](\d{2})[-./](\d{4}).*?(\d{2}):(\d{2})""")
         val matchResult = regex.find(dateStr)
         if (matchResult != null) {
-            val (d, m, y, _, _) = matchResult.destructured
-            return LocalDate.of(y.toInt(), m.toInt(), d.toInt())
+            val (d, m, y, h, min) = matchResult.destructured
+            return LocalDateTime.of(y.toInt(), m.toInt(), d.toInt(), h.toInt(), min.toInt())
         }
         throw IllegalArgumentException("Invalid date format: $dateStr")
     }

@@ -60,7 +60,11 @@ fun GradientButton(
         contentAlignment = Alignment.Center
     ) {
         if (loading) {
-            DocumentScannerAnimation(modifier = Modifier.size(24.dp))
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                color = TextPrimary,
+                strokeWidth = 2.dp
+            )
         } else {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

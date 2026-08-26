@@ -16,7 +16,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
 @app.route('/')
 def index():
-    return render_template('index.html', version="1.0.3")
+    return render_template('index.html', version="1.2.0")
 
 
 @app.route('/upload', methods=['POST'])
@@ -35,6 +35,16 @@ def upload():
     style_str = request.form.get('style', '1').strip()
     style = int(style_str) if style_str.isdigit() else 1
     ocr_engine = request.form.get('ocr_engine', 'easyocr').strip()
+    
+    # Parse column config
+    columns = None
+    columns_json = request.form.get('columns', '').strip()
+    if columns_json:
+        try:
+            import json
+            columns = json.loads(columns_json)
+        except (json.JSONDecodeError, TypeError):
+            columns = None
     
     # Check file extension
     ext = os.path.splitext(file.filename)[1].lower()
@@ -89,7 +99,7 @@ def upload():
         transactions.sort(key=lambda t: t['date'])
         
         # Write XLSX
-        count = write_to_xlsx(transactions, output_path, card_name, style=style)
+        count = write_to_xlsx(transactions, output_path, card_name, style=style, columns=columns)
         
         if count == 0:
             return jsonify({
@@ -148,6 +158,16 @@ def reconcile():
     password = request.form.get('password', '').strip() or None
     card_name = request.form.get('card_name', 'SBI').strip() or 'SBI'
     
+    # Parse column config
+    columns = None
+    columns_json = request.form.get('columns', '').strip()
+    if columns_json:
+        try:
+            import json
+            columns = json.loads(columns_json)
+        except (json.JSONDecodeError, TypeError):
+            columns = None
+    
     # Only PDFs supported for reconciliation
     ext = os.path.splitext(file.filename)[1].lower()
     if ext != '.pdf':
@@ -189,7 +209,7 @@ def reconcile():
         transactions.sort(key=lambda t: t['date'])
         
         # Reconcile with Google Sheets
-        result = sheets_reconcile(transactions, card_name)
+        result = sheets_reconcile(transactions, card_name, columns=columns)
         
         return jsonify(result)
     

@@ -542,18 +542,16 @@ def extract_transactions_from_file(file_path: str, ocr_engine: str = "easyocr") 
 # XLSX output
 # ---------------------------------------------------------------------------
 
-def write_to_xlsx(transactions: list[dict], output_path: str, card_name: str = "SBI", style: int = 1):
+def write_to_xlsx(transactions: list[dict], output_path: str, card_name: str = "SBI", style: int = 1, columns: list[dict] = None):
     """
     Write extracted transactions to a formatted XLSX file.
     
-    Columns:
-        A - Date
-        B - Amount
-        C - My Share (blank - user input)
-        D - Nitt Share (formula: =IF(B<row><>0, B<row>-C<row>, ""))
-        E - Remarks
-        F - Category (blank - user input)
-        G - Card
+    If `columns` is provided, it should be a list of dicts:
+        [{"type": "date", "label": "Date", "formula": ""}, ...]
+    Supported types: date, amount, remark, card, category, my_share, nitt_share, custom
+    
+    If `columns` is None, uses the legacy hardcoded layout:
+        A - Date, B - Amount, C - My Share, D - Nitt Share, E - Remarks, F - Category, G - Card
     """
     wb = Workbook()
     ws = wb.active
@@ -570,6 +568,7 @@ def write_to_xlsx(transactions: list[dict], output_path: str, card_name: str = "
     header_alignment = Alignment(horizontal="center", vertical="center")
     
     data_font = Font(name="Calibri", size=11)
+    green_font = Font(name="Calibri", size=11, color="00B050")
     amount_format = "#,##0.00"
     date_format = "DD/MM/YYYY"
     
@@ -580,100 +579,104 @@ def write_to_xlsx(transactions: list[dict], output_path: str, card_name: str = "
         bottom=Side(style="thin", color="D9D9D9"),
     )
     
-    # Column C highlight (blank for user input) - only applied in style 1
     col_c_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
-    
-    # Alternating row colors for style 2
     row_fill_light = PatternFill(start_color="E9EEF4", end_color="E9EEF4", fill_type="solid")
     row_fill_white = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
     
-    # ---- Headers (Row 2 to match the screenshot pattern) ----
-    headers = ["Date", "Amount", "My Share", "Nitt Share", "Remarks", "Category", "Card"]
-    header_row = 2
+    # ---- Determine column layout ----
+    if columns is None:
+        columns = [
+            {"type": "date", "label": "Date", "formula": ""},
+            {"type": "amount", "label": "Amount", "formula": ""},
+            {"type": "my_share", "label": "My Share", "formula": ""},
+            {"type": "nitt_share", "label": "Nitt Share", "formula": ""},
+            {"type": "remark", "label": "Remarks", "formula": ""},
+            {"type": "category", "label": "Category", "formula": ""},
+            {"type": "card", "label": "Card", "formula": ""},
+        ]
     
-    for col_idx, header in enumerate(headers, start=1):
-        cell = ws.cell(row=header_row, column=col_idx, value=header)
+    num_cols = len(columns)
+    last_col_letter = chr(64 + num_cols)  # A=1, B=2, etc.
+    
+    # ---- Headers (Row 2) ----
+    header_row = 2
+    for col_idx, col_def in enumerate(columns, start=1):
+        cell = ws.cell(row=header_row, column=col_idx, value=col_def.get("label", ""))
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = header_alignment
         cell.border = thin_border
     
     # ---- Column widths ----
-    col_widths = {
-        "A": 22,   # Date
-        "B": 14,   # Amount
-        "C": 14,   # My Share
-        "D": 14,   # Nitt Share
-        "E": 30,   # Remarks
-        "F": 16,   # Category
-        "G": 10,   # Card
-    }
-    for col_letter, width in col_widths.items():
-        ws.column_dimensions[col_letter].width = width
+    width_map = {"date": 22, "amount": 14, "my_share": 14, "nitt_share": 14, 
+                 "remark": 30, "category": 16, "card": 10, "custom": 18}
+    for col_idx, col_def in enumerate(columns, start=1):
+        letter = chr(64 + col_idx)
+        ws.column_dimensions[letter].width = width_map.get(col_def["type"], 16)
+    
+    # ---- Helper: get cell value for a column type ----
+    def _get_cell_value(col_def, txn, row_idx):
+        col_type = col_def["type"]
+        if col_type == "date":
+            return txn["date"]
+        elif col_type == "amount":
+            return txn["amount"]
+        elif col_type == "remark":
+            return txn.get("remark", txn.get("description", ""))
+        elif col_type == "card":
+            return card_name
+        elif col_type == "category":
+            return ""  # blank for user input
+        elif col_type == "my_share":
+            return None  # blank for user input
+        elif col_type == "nitt_share":
+            # Find the amount column letter and my_share column letter for the formula
+            amt_letter = None
+            share_letter = None
+            for i, c in enumerate(columns):
+                if c["type"] == "amount":
+                    amt_letter = chr(65 + i)
+                elif c["type"] == "my_share":
+                    share_letter = chr(65 + i)
+            if amt_letter and share_letter:
+                return f'=IF({amt_letter}{row_idx}<>0,{amt_letter}{row_idx}-{share_letter}{row_idx},"")'
+            return 0
+        elif col_type == "custom":
+            formula = col_def.get("formula", "")
+            if formula:
+                return formula.replace("{row}", str(row_idx))
+            return ""
+        return ""
     
     # ---- Data rows (starting from row 3) ----
-    
     for row_idx, txn in enumerate(transactions, start=3):
         row_fill = row_fill_white
         if style == 2:
             row_fill = row_fill_light if row_idx % 2 == 1 else row_fill_white
+        
+        for col_idx, col_def in enumerate(columns, start=1):
+            value = _get_cell_value(col_def, txn, row_idx)
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.font = data_font
+            cell.border = thin_border
             
-        # Column A: Date
-        date_cell = ws.cell(row=row_idx, column=1, value=txn["date"])
-        date_cell.number_format = date_format
-        date_cell.font = data_font
-        date_cell.border = thin_border
-        
-        # Column B: Amount
-        amount_cell = ws.cell(row=row_idx, column=2, value=txn["amount"])
-        amount_cell.number_format = amount_format
-        if txn["type"] == "C":
-            amount_cell.font = Font(name="Calibri", size=11, color="00B050") # Green
-        else:
-            amount_cell.font = data_font
-        amount_cell.border = thin_border
-        
-        # Column C: My Share (blank - user input)
-        share_cell = ws.cell(row=row_idx, column=3)
-        share_cell.fill = col_c_fill if style == 1 else row_fill
-        share_cell.number_format = amount_format
-        share_cell.font = data_font
-        share_cell.border = thin_border
-        
-        # Column D: Nitt Share (formula)
-        formula = f'=IF(B{row_idx}<>0,B{row_idx}-C{row_idx},"")'
-        nitt_cell = ws.cell(row=row_idx, column=4, value=formula)
-        nitt_cell.number_format = amount_format
-        nitt_cell.font = data_font
-        nitt_cell.border = thin_border
-        
-        # Column E: Remarks
-        remark_cell = ws.cell(row=row_idx, column=5, value=txn["remark"])
-        remark_cell.font = data_font
-        remark_cell.border = thin_border
-        
-        # Column F: Category (blank - user input)
-        cat_cell = ws.cell(row=row_idx, column=6)
-        cat_cell.font = data_font
-        cat_cell.border = thin_border
-        
-        # Column G: Card
-        card_cell = ws.cell(row=row_idx, column=7, value=card_name)
-        card_cell.font = data_font
-        card_cell.border = thin_border
-        
-        # Apply row fill for style 2 across all cells in the row
-        if style == 2:
-            date_cell.fill = row_fill
-            amount_cell.fill = row_fill
-            nitt_cell.fill = row_fill
-            remark_cell.fill = row_fill
-            cat_cell.fill = row_fill
-            card_cell.fill = row_fill
+            # Apply type-specific formatting
+            col_type = col_def["type"]
+            if col_type == "date":
+                cell.number_format = date_format
+            elif col_type in ("amount", "my_share", "nitt_share"):
+                cell.number_format = amount_format
+                if col_type == "amount" and txn["type"] == "C":
+                    cell.font = green_font
+            elif col_type == "my_share" and style == 1:
+                cell.fill = col_c_fill
+            
+            if style == 2:
+                cell.fill = row_fill
     
     # ---- Auto-filter on header row ----
     last_row = header_row + len(transactions)
-    ws.auto_filter.ref = f"A{header_row}:G{last_row}"
+    ws.auto_filter.ref = f"A{header_row}:{last_col_letter}{last_row}"
     
     # ---- Freeze panes (freeze below header) ----
     ws.freeze_panes = f"A{header_row + 1}"
