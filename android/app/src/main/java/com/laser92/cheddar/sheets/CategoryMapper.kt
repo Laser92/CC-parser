@@ -9,54 +9,30 @@ class CategoryMapper @Inject constructor() {
     // Keyword in merchant remark -> Category
     private val remarkToCategory = mapOf(
         "swiggy" to "Swiggy",
-        "zomato" to "Online Food",
+        "instamart" to "Instamart",
+        "blinkit foods limit" to "Bistro",
         "blinkit" to "Blinkit",
-        "zepto" to "Zepto",
-        "bigbasket" to "Grocery",
-        "dmart" to "Grocery",
-        "amazon" to "Amazon",
-        "flipkart" to "Flipkart",
-        "myntra" to "Fashion",
-        "ajio" to "Fashion",
-        "nykaa" to "Fashion",
-        "uber" to "Travel",
-        "ola" to "Travel",
-        "rapido" to "Travel",
-        "irctc" to "Travel",
-        "makemytrip" to "Travel",
-        "netflix" to "Subscriptions >.<",
-        "spotify" to "Subscriptions >.<",
-        "hotstar" to "Subscriptions >.<",
-        "prime video" to "Subscriptions >.<",
-        "youtube" to "Subscriptions >.<",
+        "zomato" to "Online Food",
+        "bistro" to "Bistro",
         "rentomojo" to "Subscriptions >.<",
-        "google" to "Google",
-        "apple" to "Apple",
-        "blue tokai" to "Food & Drinks",
-        "starbucks" to "Food & Drinks",
-        "minimalist" to "Personal Care",
-        "reliance" to "Grocery",
-        "jiomart" to "Grocery",
-        "eternal" to "Swiggy",
-        "orbgen" to "Swiggy"
+        "wifi" to "Subscriptions >.<",
+        "coitonic" to "Clothes",
+        "ratnadeep" to "Ratnadeep",
+        "zepto" to "Blinkit",
+        "amazon" to "Amazon",
+        "devaraj enterpr" to "Petrol",
+        "anand" to "Outside Food"
     )
     
     // Category -> Default card
     private val categoryToCard = mapOf(
-        "Swiggy" to "Swiggy",
-        "Online Food" to "SBI",
-        "Blinkit" to "SBI",
-        "Zepto" to "SBI",
-        "Grocery" to "SBI",
-        "Amazon" to "Amazon",
-        "Flipkart" to "SBI",
-        "Fashion" to "SBI",
-        "Travel" to "SBI",
-        "Subscriptions >.<" to "SBI",
-        "Google" to "SBI",
-        "Apple" to "SBI",
-        "Food & Drinks" to "SBI",
-        "Personal Care" to "SBI"
+        "swiggy" to "Swiggy",
+        "instamart" to "Swiggy",
+        "blinkit" to "SBI",
+        "online food" to "SBI",
+        "online" to "SBI",
+        "bistro" to "SBI",
+        "subscriptions >.<" to "SBI"
     )
     
     /**
@@ -67,9 +43,13 @@ class CategoryMapper @Inject constructor() {
      */
     fun applyCategories(merchant: String): Pair<String, String> {
         val lowerMerchant = merchant.lowercase()
-        for ((keyword, category) in remarkToCategory) {
+        // Check longer keywords first to prevent partial matches taking precedence
+        val sortedKeys = remarkToCategory.keys.sortedByDescending { it.length }
+        
+        for (keyword in sortedKeys) {
             if (lowerMerchant.contains(keyword)) {
-                val card = categoryToCard[category] ?: ""
+                val category = remarkToCategory[keyword]!!
+                val card = categoryToCard[category.lowercase()] ?: ""
                 return Pair(category, card)
             }
         }

@@ -14,9 +14,12 @@ import javax.inject.Singleton
 
 // Assuming Transaction is in a model package. Adjust import as needed.
 import com.laser92.cheddar.model.Transaction
+import com.laser92.cheddar.sheets.CategoryMapper
 
 @Singleton
-class XlsxWriter @Inject constructor() {
+class XlsxWriter @Inject constructor(
+    private val categoryMapper: CategoryMapper
+) {
 
     /**
      * Writes a list of transactions to an XLSX file.
@@ -123,12 +126,13 @@ class XlsxWriter @Inject constructor() {
 
             // Column E: Remarks
             val remarksCell = row.createCell(4)
-            remarksCell.setCellValue(txn.remark) // Using simplified merchant name
+            remarksCell.setCellValue(txn.remark)
             remarksCell.cellStyle = currentDataStyle
 
             // Column F: Category
             val categoryCell = row.createCell(5)
-            categoryCell.setCellValue("") // Empty category as specified
+            val category = categoryMapper.applyCategories(txn.remark).first
+            categoryCell.setCellValue(category)
             categoryCell.cellStyle = currentDataStyle
 
             // Column G: Card
@@ -146,12 +150,12 @@ class XlsxWriter @Inject constructor() {
         // Freeze pane at A3 (row index 2)
         sheet.createFreezePane(0, 2)
 
-        // Column widths: A=14, B=12, C=12, D=12, E=30, F=15, G=10
+        // Column widths: A=14, B=12, C=12, D=12, E=20, F=15, G=10
         sheet.setColumnWidth(0, 14 * 256)
         sheet.setColumnWidth(1, 12 * 256)
         sheet.setColumnWidth(2, 12 * 256)
         sheet.setColumnWidth(3, 12 * 256)
-        sheet.setColumnWidth(4, 30 * 256)
+        sheet.setColumnWidth(4, 20 * 256)
         sheet.setColumnWidth(5, 15 * 256)
         sheet.setColumnWidth(6, 10 * 256)
 

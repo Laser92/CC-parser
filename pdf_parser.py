@@ -122,10 +122,28 @@ FORMAT3_RE = re.compile(
     r"^(?:VISA\s*|RuPay\s*|MasterCard\s*)?(\d{2}[-./]\d{2}[-./]\d{4}\s*[^\d\w\s]\s*\d{2}:\d{2})\s*(.+?)\s*(?:Refund\s*)?([+\-\uFF0B\u2212]?)\s*(?:[^\w\s\d]+\s*)?([\d,]+\.\d{2})\b.*$"
 )
 
+# Format 4 (CRED / IndusInd Bank RuPay & standard DD/MM/YYYY DR/CR format):
+# 03/08/2026 UPI RATNADEEPSUPERMARK 658125780930 GROCERY & 0 47.00 DR Statement Date SUPERMARKET
+# 22/08/2026 04/08/2026 UPI NAVID A 658215907893 1 100.00 DR
+# 06/08/2026 UPI CRED 658418215897 MISCELLANEOUS 18 369.00 DR Total Outstanding (Including Loans)
+# 09/08/2026 UPI CRED 658731759128 MISCELLANEOUS 7 149.00 DR 1,972.00 DR
+FORMAT4_RE = re.compile(
+    r"^(?:(?:\d{2}[/-]\d{2}[/-]\d{4})\s+)?"          # optional leading date from sidebar
+    r"(\d{2}[/-]\d{2}[/-]\d{4})\s+"                  # group 1: transaction date (DD/MM/YYYY or DD-MM-YYYY)
+    r"(.+?)\s+"                                      # group 2: description (+ optional category)
+    r"(?:(?:[+-]?\d+|-)\s+)?"                        # optional rewards points: e.g. 0, 1, 18, 7 or -
+    r"(?:₹|Rs\.?|INR|\$|€)?\s*"                      # optional currency symbol
+    r"([\d,]+\.\d{2})\s*"                            # group 3: amount
+    r"\(?(DR|CR|Dr|Cr|Dr\.|Cr\.)\)?\b"               # group 4: DR or CR
+    r"(?:.*)?$",                                     # optional trailing sidebar/noise text
+    re.IGNORECASE
+)
+
 # Lines to skip (headers, footers, section titles, etc.)
 SKIP_PATTERNS = [
     re.compile(r"(?i)^\s*date\s+transaction\s+details", re.IGNORECASE),
     re.compile(r"(?i)^\s*for\s+statement\s+period", re.IGNORECASE),
+    re.compile(r"(?i)^\s*statement\s+period", re.IGNORECASE),
     re.compile(r"(?i)^\s*amount\s*[\(\[]", re.IGNORECASE),
     re.compile(r"(?i)^\s*transactions?\s+for\s+", re.IGNORECASE),
     re.compile(r"(?i)^\s*page\s+\d+", re.IGNORECASE),
@@ -135,6 +153,15 @@ SKIP_PATTERNS = [
     re.compile(r"(?i)^\s*opening\s+balance", re.IGNORECASE),
     re.compile(r"(?i)^\s*closing\s+balance", re.IGNORECASE),
     re.compile(r"(?i)^\s*amount\s*\(", re.IGNORECASE),
+    re.compile(r"(?i)total\s+amount\s+due", re.IGNORECASE),
+    re.compile(r"(?i)minimum\s+amount\s+due", re.IGNORECASE),
+    re.compile(r"(?i)payment\s+due\s+date", re.IGNORECASE),
+    re.compile(r"(?i)account\s+summary", re.IGNORECASE),
+    re.compile(r"(?i)purchases\s*&\s*cash\s+transactions", re.IGNORECASE),
+    re.compile(r"(?i)purchases\s*&\s*other\s+charges", re.IGNORECASE),
+    re.compile(r"(?i)previous\s+balance", re.IGNORECASE),
+    re.compile(r"(?i)cash\s+advance", re.IGNORECASE),
+    re.compile(r"(?i)payments\s*&\s*other\s+credits", re.IGNORECASE),
     re.compile(r"^\s*$"),  # blank lines
 ]
 
@@ -169,24 +196,70 @@ def parse_date_format3(date_str: str) -> datetime:
     raise ValueError(f"Invalid date format: {date_str}")
 
 
+def parse_date_format4(date_str: str) -> datetime:
+    """Parse date string like '03/08/2026' or '03-08-2026' into a datetime object."""
+    clean_str = date_str.replace('-', '/').strip()
+    return datetime.strptime(clean_str, "%d/%m/%Y")
+
+
 def clean_amount(amount_str: str) -> float:
     """Convert amount string like '1,912.00' to float."""
     return float(amount_str.replace(",", ""))
 
 
+KNOWN_CATEGORIES = [
+    r"GROCERY\s*&.*",
+    r"GROCERY(?:\s+AND\s+SUPERMARKET)?",
+    r"SUPERMARKET",
+    r"MISCELLANEOUS",
+    r"COMPUTERS",
+    r"RESTAURANTS?",
+    r"DEPARTMENT\s+STORES?",
+    r"HEALTHCARE",
+    r"TRAVEL(?:\s*&\s*ENTERTAINMENT)?",
+    r"UTILITIES",
+    r"APPAREL",
+    r"FUEL",
+    r"ENTERTAINMENT",
+    r"HOTEL",
+    r"TELECOMMUNICATION",
+    r"EDUCATION",
+    r"FINANCIAL\s+SERVICES",
+    r"PERSONAL\s+SERVICES",
+    r"BUSINESS\s+SERVICES",
+    r"AUTOMOBILE",
+    r"ELECTRONICS",
+]
+
+CATEGORY_PATTERN = re.compile(r"\s+(?:" + "|".join(KNOWN_CATEGORIES) + r")\s*$", re.IGNORECASE)
+INDIAN_STATE_CODES = r"(?:KA|MH|DL|TN|TS|TG|WB|UP|HR|GJ|RJ|MP|KL|AP|PB|BR|JK|OR|GA|IND|IN)"
+
+
 def simplify_description(desc: str) -> str:
     """
     Simplify the transaction description into a cleaner remark.
-    Removes city/state codes, extra whitespace, and common noise.
+    Removes UPI prefix/ref, categories, city/state codes, extra whitespace, and common noise.
     """
     desc = desc.strip()
     
-    # Remove trailing state/country codes (2-3 letter codes at the end)
-    desc = re.sub(r"\s+[A-Z]{2,3}\s*$", "", desc)
+    # Strip known trailing merchant categories
+    desc = CATEGORY_PATTERN.sub("", desc).strip()
+    
+    # Strip 12-digit UPI RRN / reference number
+    desc = re.sub(r"\s+\d{12}\b", "", desc).strip()
+    
+    # Strip leading UPI prefix (e.g. "UPI ", "UPI/", "UPI-")
+    desc = re.sub(r"^UPI[\s\-_/]+", "", desc, flags=re.IGNORECASE).strip()
+    
+    # Remove trailing known state/country codes
+    desc = re.sub(r"\s+" + INDIAN_STATE_CODES + r"\s*$", "", desc, flags=re.IGNORECASE)
     # Remove trailing city names followed by state codes
     desc = re.sub(r"\s+(BANGALORE|BENGALURU|DELHI|NEW\s+DELHI|MUMBAI|NOIDA|JAIPUR|CHENNAI|HYDERABAD|KOLKATA|PUNE|GURUGRAM|GURGAON)\s*.*$", "", desc, flags=re.IGNORECASE)
     # Remove "Bangalore" or "bangalore" (case-insensitive) even without trailing code
     desc = re.sub(r"\s+Bangalore\s*$", "", desc, flags=re.IGNORECASE)
+    
+    # Re-check trailing categories after city/state strip
+    desc = CATEGORY_PATTERN.sub("", desc).strip()
     
     # Clean up specific merchant patterns
     desc = re.sub(r"\*", " ", desc)              # Replace * with space
@@ -195,6 +268,8 @@ def simplify_description(desc: str) -> str:
     
     # Common merchant name simplifications
     merchant_map = {
+        r"(?i)ratnadeep": "Ratnadeep",
+        r"(?i)\bcred\b": "CRED",
         r"(?i)amazon\s*seller\s*services": "Amazon",
         r"(?i)zepto\s*marketplace\s*pri": "Zepto",
         r"(?i)beminimalist": "Minimalist",
@@ -229,6 +304,10 @@ def simplify_description(desc: str) -> str:
         if re.search(pattern, desc):
             return replacement
     
+    # Title case if all uppercase
+    if desc.isupper():
+        desc = desc.title()
+        
     return desc
 
 
@@ -252,13 +331,16 @@ def parse_lines_to_transactions(lines: list[str], use_ocr_regex: bool = False) -
         
         match = pattern.match(line)
         
-        # Check against Format 2 if standard format didn't match
+        # Check against Format 2, 3, 4 if standard format didn't match
         match2 = None
         match3 = None
+        match4 = None
         if not match:
             match2 = FORMAT2_RE.match(line)
         if not match and not match2:
             match3 = FORMAT3_RE.match(line)
+        if not match and not match2 and not match3:
+            match4 = FORMAT4_RE.match(line)
             
         if match:
             date_str = match.group(1)
@@ -284,7 +366,7 @@ def parse_lines_to_transactions(lines: list[str], use_ocr_regex: bool = False) -
                     "description": description,
                     "amount": amt,
                     "type": txn_type,   # C = Credit, D = Debit
-                    "remark": description,
+                    "remark": simplify_description(description),
                 }
                 transactions.append(txn)
             except ValueError:
@@ -307,7 +389,7 @@ def parse_lines_to_transactions(lines: list[str], use_ocr_regex: bool = False) -
                     "description": description,
                     "amount": amt,
                     "type": "C" if is_credit else "D",
-                    "remark": description,
+                    "remark": simplify_description(description),
                 }
                 transactions.append(txn)
             except ValueError:
@@ -331,7 +413,30 @@ def parse_lines_to_transactions(lines: list[str], use_ocr_regex: bool = False) -
                     "description": description,
                     "amount": amt,
                     "type": "C" if is_credit else "D",
-                    "remark": description,
+                    "remark": simplify_description(description),
+                }
+                transactions.append(txn)
+            except ValueError:
+                continue
+
+        elif match4:
+            date_str = match4.group(1)
+            description = match4.group(2).strip()
+            amount_str = match4.group(3)
+            indicator = match4.group(4).upper()
+            
+            try:
+                amt = clean_amount(amount_str)
+                is_credit = "CR" in indicator or indicator == "C"
+                if is_credit:
+                    amt = -amt
+                    
+                txn = {
+                    "date": parse_date_format4(date_str),
+                    "description": description,
+                    "amount": amt,
+                    "type": "C" if is_credit else "D",
+                    "remark": simplify_description(description),
                 }
                 transactions.append(txn)
             except ValueError:
@@ -513,7 +618,9 @@ def extract_transactions_from_image(image_path: str, ocr_engine: str = "easyocr"
     for i, line in enumerate(fixed_lines):
         f1_match = "F1" if TRANSACTION_OCR_RE.match(line) else "  "
         f2_match = "F2" if FORMAT2_RE.match(line) else "  "
-        print(f"     [{f1_match}|{f2_match}] {repr(line)}")
+        f3_match = "F3" if FORMAT3_RE.match(line) else "  "
+        f4_match = "F4" if FORMAT4_RE.match(line) else "  "
+        print(f"     [{f1_match}|{f2_match}|{f3_match}|{f4_match}] {repr(line)}")
     
     return parse_lines_to_transactions(fixed_lines, use_ocr_regex=True)
 
@@ -590,7 +697,7 @@ def write_to_xlsx(transactions: list[dict], output_path: str, card_name: str = "
             {"type": "amount", "label": "Amount", "formula": ""},
             {"type": "my_share", "label": "My Share", "formula": ""},
             {"type": "nitt_share", "label": "Nitt Share", "formula": ""},
-            {"type": "remark", "label": "Remarks", "formula": ""},
+            {"type": "remark", "label": "Remark", "formula": ""},
             {"type": "category", "label": "Category", "formula": ""},
             {"type": "card", "label": "Card", "formula": ""},
         ]
@@ -626,7 +733,26 @@ def write_to_xlsx(transactions: list[dict], output_path: str, card_name: str = "
         elif col_type == "card":
             return card_name
         elif col_type == "category":
-            return ""  # blank for user input
+            remark = txn.get("remark", txn.get("description", "")).lower()
+            for key, cat in [
+                ('swiggy', 'Swiggy'),
+                ('instamart', 'Instamart'),
+                ('blinkit foods limit', 'Bistro'),
+                ('blinkit', 'Blinkit'),
+                ('zomato', 'Online Food'),
+                ('bistro', 'Bistro'),
+                ('rentomojo', 'Subscriptions >.<'),
+                ('wifi', 'Subscriptions >.<'),
+                ('coitonic', 'Clothes'),
+                ('ratnadeep', 'Ratnadeep'),
+                ('zepto', 'Blinkit'),
+                ('amazon', 'Amazon'),
+                ('devaraj enterpr', 'Petrol'),
+                ('anand', 'Outside Food')
+            ]:
+                if key in remark:
+                    return cat
+            return ""
         elif col_type == "my_share":
             return None  # blank for user input
         elif col_type == "nitt_share":

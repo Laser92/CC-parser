@@ -40,18 +40,39 @@ class MerchantNormalizer @Inject constructor() {
         "ETERNAL LIMITED" to "Eternal (Swiggy parent)",
         "CARBONTREE" to "Carbontree",
         "CMA EQUIPMENTS" to "CMA Equipments",
-        "BLING QUEEN" to "Bling Queen"
+        "BLING QUEEN" to "Bling Queen",
+        "RATNADEEP" to "Ratnadeep",
+        "CRED" to "CRED"
     )
 
+    private val KNOWN_CATEGORIES = listOf(
+        "GROCERY &.*", "GROCERY(?: AND SUPERMARKET)?", "SUPERMARKET", "MISCELLANEOUS",
+        "COMPUTERS", "RESTAURANTS?", "DEPARTMENT STORES?", "HEALTHCARE",
+        "TRAVEL(?: & ENTERTAINMENT)?", "UTILITIES", "APPAREL", "FUEL",
+        "ENTERTAINMENT", "HOTEL", "TELECOMMUNICATION", "EDUCATION",
+        "FINANCIAL SERVICES", "PERSONAL SERVICES", "BUSINESS SERVICES",
+        "AUTOMOBILE", "ELECTRONICS"
+    )
+    private val CATEGORY_REGEX = Regex("\\s+(?:" + KNOWN_CATEGORIES.joinToString("|") + ")\\s*$", RegexOption.IGNORE_CASE)
+    private val STATE_REGEX = Regex("\\s+(?:KA|MH|DL|TN|TS|TG|WB|UP|HR|GJ|RJ|MP|KL|AP|PB|BR|JK|OR|GA|IND|IN)\\s*$", RegexOption.IGNORE_CASE)
+
     fun simplifyDescription(desc: String): String {
-        var cleanDesc = desc.uppercase(Locale.getDefault())
+        var cleanDesc = desc.uppercase(Locale.getDefault()).trim()
+
+        // Strip known trailing merchant categories
+        cleanDesc = CATEGORY_REGEX.replace(cleanDesc, "").trim()
+
+        // Strip 12-digit UPI RRN / reference number
+        cleanDesc = cleanDesc.replace(Regex("\\s+\\d{12}\\b"), "").trim()
+
+        // Strip leading UPI prefix (e.g. "UPI ", "UPI/", "UPI-")
+        cleanDesc = cleanDesc.replace(Regex("^UPI[\\s\\-_/]+", RegexOption.IGNORE_CASE), "").trim()
 
         // Remove asterisks
         cleanDesc = cleanDesc.replace("*", " ")
 
-        // Strip trailing 2-3 letter state/country codes
-        val stateRegex = Regex("\\s+[A-Z]{2,3}$")
-        cleanDesc = cleanDesc.replace(stateRegex, "")
+        // Strip trailing known state/country codes
+        cleanDesc = STATE_REGEX.replace(cleanDesc, "")
 
         // Strip trailing city names
         for (city in CITIES) {
@@ -59,6 +80,9 @@ class MerchantNormalizer @Inject constructor() {
                 cleanDesc = cleanDesc.removeSuffix(" $city")
             }
         }
+
+        // Re-check trailing categories after city/state strip
+        cleanDesc = CATEGORY_REGEX.replace(cleanDesc, "").trim()
 
         // Apply merchant mappings
         for ((pattern, name) in MERCHANT_MAPPINGS) {

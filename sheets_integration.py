@@ -54,19 +54,25 @@ COL_REMARK    = 5   # E
 COL_CATEGORY  = 6   # F
 COL_CARD      = 7   # G
 
-# Remark → Category mapping  (mirrors GAS REMARK_TO_CATEGORY)
+# Remark -> Category mapping  (mirrors GAS REMARK_TO_CATEGORY)
 REMARK_TO_CATEGORY = {
-    'swiggy':    'Swiggy',
-    'instamart': 'Instamart',
-    'blinkit':   'Blinkit',
-    'zomato':    'Online Food',
-    'bistro':    'Bistro',
-    'rentomojo': 'Subscriptions >.<',
-    'wifi':      'Subscriptions >.<',
-    'coitonic':  'Clothes',
+    'swiggy':              'Swiggy',
+    'instamart':           'Instamart',
+    'blinkit foods limit': 'Bistro',
+    'blinkit':             'Blinkit',
+    'zomato':              'Online Food',
+    'bistro':              'Bistro',
+    'rentomojo':           'Subscriptions >.<',
+    'wifi':                'Subscriptions >.<',
+    'coitonic':            'Clothes',
+    'ratnadeep':           'Ratnadeep',
+    'zepto':               'Blinkit',
+    'amazon':              'Amazon',
+    'devaraj enterpr':     'Petrol',
+    'anand':               'Outside Food'
 }
 
-# Category → Card mapping  (mirrors GAS CATEGORY_TO_CARD)
+# Category -> Card mapping  (mirrors GAS CATEGORY_TO_CARD)
 CATEGORY_TO_CARD = {
     'swiggy':              'Swiggy',
     'instamart':           'Swiggy',
@@ -74,7 +80,7 @@ CATEGORY_TO_CARD = {
     'online food':         'SBI',
     'online':              'SBI',
     'bistro':              'SBI',
-    'subscriptions >.<':   'SBI',
+    'subscriptions >.<':   'SBI'
 }
 
 
@@ -384,7 +390,17 @@ def reconcile(transactions: list[dict], card_name: str, columns: list[dict] = No
                         elif col_type == 'my_share':
                             row.append(amount)
                         elif col_type == 'nitt_share':
-                            row.append(0)
+                            amt_letter = None
+                            share_letter = None
+                            for i, c in enumerate(columns):
+                                if c["type"] == "amount":
+                                    amt_letter = chr(65 + i)
+                                elif c["type"] == "my_share":
+                                    share_letter = chr(65 + i)
+                            if amt_letter and share_letter:
+                                row.append(f'=IF({amt_letter}{{row}}<>0,{amt_letter}{{row}}-{share_letter}{{row}},"")')
+                            else:
+                                row.append(0)
                         elif col_type == 'custom':
                             formula = col_def.get('formula', '')
                             # {row} will be replaced after we know the actual row number
@@ -397,7 +413,7 @@ def reconcile(transactions: list[dict], card_name: str, columns: list[dict] = No
                         formatted_date,     # A  Date
                         amount,             # B  Amount
                         amount,             # C  My Share  (default = full amount)
-                        0,                  # D  Nitt Share (default = 0)
+                        '=IF(B{row}<>0,B{row}-C{row},"")', # D  Nitt Share
                         merchant,           # E  Remark
                         category,           # F  Category
                         final_card,         # G  Card
@@ -423,12 +439,11 @@ def reconcile(transactions: list[dict], card_name: str, columns: list[dict] = No
                 end_row   = start_row + len(rows_to_add) - 1
                 
                 # Replace {row} placeholders in custom formulas
-                if columns:
-                    for r_idx, row in enumerate(rows_to_add):
-                        actual_row = start_row + r_idx
-                        for c_idx, cell_val in enumerate(row):
-                            if isinstance(cell_val, str) and '{row}' in cell_val:
-                                rows_to_add[r_idx][c_idx] = cell_val.replace('{row}', str(actual_row))
+                for r_idx, row in enumerate(rows_to_add):
+                    actual_row = start_row + r_idx
+                    for c_idx, cell_val in enumerate(row):
+                        if isinstance(cell_val, str) and '{row}' in cell_val:
+                            rows_to_add[r_idx][c_idx] = cell_val.replace('{row}', str(actual_row))
                 
                 cell_range = f'A{start_row}:{last_col_letter}{end_row}'
 

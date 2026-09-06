@@ -20,6 +20,7 @@ class TransactionParser @Inject constructor(
     private val TRANSACTION_OCR_RE = Regex("^(\\d{2}\\s+\\w{3}\\s+\\d{2})\\s+(.+?)\\s+([+\\-\\uFF0B\\u2212]?)\\s*(?:₹|Rs\\.?|INR|€|E|\\$)?\\s*([\\d,]+\\.\\d{2})\\s*([CDcd][rR]?\\.?)?\\s*$")
     private val FORMAT2_RE = Regex("^(\\d{2}/\\d{2}/\\d{4}\\s*(?:\\|)?\\s*\\d{2}:\\d{2})\\s+(.+?)\\s+(?:(?:[+\\-\\uFF0B\\u2212]\\s*)?\\d+\\s+)?([+\\-\\uFF0B\\u2212]?)\\s*(?:₹|Rs\\.?|INR|C|c|€|E)?\\s*([\\d,]+\\.\\d{2})\\b.*$")
     private val FORMAT3_RE = Regex("^(?:VISA\\s*|RuPay\\s*|MasterCard\\s*)?(\\d{2}[-./]\\d{2}[-./]\\d{4}\\s*[^\\d\\w\\s]\\s*\\d{2}:\\d{2})\\s*(.+?)\\s*(?:Refund\\s*)?([+\\-\\uFF0B\\u2212]?)\\s*(?:[^\\w\\s\\d]+\\s*)?(\\d[\\d,]*\\.\\d{2})\\b.*$")
+    private val FORMAT4_RE = Regex("^(?:(?:\\d{2}[/-]\\d{2}[/-]\\d{4})\\s+)?(\\d{2}[/-]\\d{2}[/-]\\d{4})\\s+(.+?)\\s+(?:(?:[+\\-\\uFF0B\\u2212]?\\d+|-)\\s+)?(?:₹|Rs\\.?|INR|\\$|€)?\\s*([\\d,]+\\.\\d{2})\\s*\\(?(DR|CR|Dr|Cr|Dr\\.|Cr\\.)\\)?\\b.*$", RegexOption.IGNORE_CASE)
 
     private val SKIP_PATTERNS = listOf(
         "Date Transaction Details", "For Statement Period", "Statement Period",
@@ -28,7 +29,8 @@ class TransactionParser @Inject constructor(
         "^Total\\s", "Credit Limit", "Available Credit", "^\\s*$", "Finance Charge",
         "Late Payment", "Previous Balance", "Payment Due Date", "Reward Points",
         "Annual Percentage", "^\\d+\\s+of\\s+\\d+$", "Transactions for", "Card Number",
-        "Statement Date"
+        "Statement Date", "Account Summary", "Purchases & Cash Transactions",
+        "Purchases & Other Charges", "Cash Advance", "Payments & Other Credits"
     ).map { Regex(it, RegexOption.IGNORE_CASE) }
 
     private val ocrCreditKeywords = listOf("payment", "cashback", "credit", "refund", "reversal")
@@ -59,6 +61,12 @@ class TransactionParser @Inject constructor(
             return LocalDateTime.of(y.toInt(), m.toInt(), d.toInt(), h.toInt(), min.toInt())
         }
         throw IllegalArgumentException("Invalid date format: $dateStr")
+    }
+
+    fun parseDateFormat4(dateStr: String): LocalDateTime {
+        val cleanStr = dateStr.replace("-", "/").trim()
+        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+        return LocalDate.parse(cleanStr, formatter).atStartOfDay()
     }
 
     fun cleanAmount(amountStr: String): Double {
@@ -184,6 +192,35 @@ class TransactionParser @Inject constructor(
                     val lowerDesc = desc.lowercase()
                     var isCredit = sign == "+" || sign == "\uFF0B" || cleanLine.lowercase().contains("refund")
                     
+                    if (isCredit) {
+                        amount = -amount
+                    }
+
+                    val type = if (isCredit) TransactionType.CREDIT else TransactionType.DEBIT
+                    val remark = merchantNormalizer.simplifyDescription(desc)
+
+                    transactions.add(Transaction(date, desc, amount, type, remark))
+                    matched = true
+                } catch (e: Exception) {
+                    // Ignore parse errors for line
+                }
+            }
+
+            if (matched) continue
+
+            // Try Format 4 (CRED / IndusInd RuPay & DD/MM/YYYY DR/CR format)
+            val match4 = FORMAT4_RE.find(cleanLine)
+            if (match4 != null) {
+                try {
+                    val dateStr = match4.groupValues[1]
+                    val desc = match4.groupValues[2].trim()
+                    val amountStr = match4.groupValues[3]
+                    val indicator = match4.groupValues[4].uppercase()
+
+                    val date = parseDateFormat4(dateStr)
+                    var amount = cleanAmount(amountStr)
+                    val isCredit = indicator.contains("CR") || indicator == "C"
+
                     if (isCredit) {
                         amount = -amount
                     }

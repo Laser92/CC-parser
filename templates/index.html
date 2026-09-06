@@ -763,6 +763,8 @@
             color: #fca5a5;
             line-height: 1.5;
             font-weight: 500;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
         /* Success message */
@@ -1278,29 +1280,33 @@
             const DEFAULT_COLUMNS = [
                 { type: 'date', label: 'Date', formula: '' },
                 { type: 'amount', label: 'Amount', formula: '' },
+                { type: 'my_share', label: 'My Share', formula: '' },
+                { type: 'nitt_share', label: 'Nitt Share', formula: '' },
                 { type: 'remark', label: 'Remark', formula: '' },
+                { type: 'category', label: 'Category', formula: '' },
+                { type: 'card', label: 'Card', formula: '' },
             ];
             const COL_TYPES = [
                 { value: 'date', label: 'Date' },
                 { value: 'amount', label: 'Amount' },
-                { value: 'remark', label: 'Remark' },
-                { value: 'card', label: 'Card' },
-                { value: 'category', label: 'Category' },
                 { value: 'my_share', label: 'My Share' },
                 { value: 'nitt_share', label: 'Nitt Share' },
+                { value: 'category', label: 'Category' },
+                { value: 'card', label: 'Card' },
+                { value: 'remark', label: 'Remark' },
                 { value: 'custom', label: 'Custom Formula' },
             ];
 
             function loadColumns() {
                 try {
-                    const saved = localStorage.getItem('cheddar_columns');
+                    const saved = localStorage.getItem('cheddar_columns_v4');
                     if (saved) return JSON.parse(saved);
                 } catch (e) {}
                 return JSON.parse(JSON.stringify(DEFAULT_COLUMNS));
             }
 
             function saveColumns(cols) {
-                localStorage.setItem('cheddar_columns', JSON.stringify(cols));
+                localStorage.setItem('cheddar_columns_v4', JSON.stringify(cols));
             }
 
             function colLetter(i) { return String.fromCharCode(65 + i); }
@@ -1386,6 +1392,7 @@
                 renderColumns();
             });
             document.getElementById('settingsReset').addEventListener('click', () => {
+                localStorage.removeItem('cheddar_columns_v3');
                 localStorage.removeItem('cheddar_columns');
                 renderColumns();
             });
