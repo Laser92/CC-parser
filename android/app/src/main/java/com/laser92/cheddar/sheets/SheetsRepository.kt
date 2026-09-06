@@ -134,37 +134,7 @@ class SheetsRepository @Inject constructor(
         return null
     }
 
-    private fun isDuplicate(
-        existingRows: List<List<Any>>, 
-        txnDate: LocalDateTime, 
-        txnAmount: Double,
-        txnCard: String
-    ): Boolean {
-        for (row in existingRows) {
-            if (row.size < 2) continue
 
-            val rawDate = row[0].toString().trim()
-            val rawAmtStr = row[1].toString().trim()
-            val rawCard = row.getOrNull(6)?.toString()?.trim() ?: ""
-
-            if (rawDate.isEmpty() && rawAmtStr.isEmpty()) continue
-
-            // Card compare (ignoring case)
-            if (!rawCard.equals(txnCard, ignoreCase = true)) continue
-
-            // Amount compare
-            val rawAmt = rawAmtStr.replace(",", "").replace(Regex("[^\\d.-]"), "").toDoubleOrNull()
-            if (rawAmt == null || abs(rawAmt - txnAmount) > 0.50) continue
-
-            // Date compare
-            val rowDate = parseRowDate(rawDate) ?: continue
-            val minutesDiff = abs(java.time.Duration.between(txnDate, rowDate).toMinutes())
-            if (minutesDiff <= 5) {
-                return true
-            }
-        }
-        return false
-    }
 
     suspend fun reconcile(transactions: List<Transaction>, cardName: String, sheetId: String): ReconcileResult = withContext(Dispatchers.IO) {
         val addedTxns = mutableListOf<TransactionSummary>()
@@ -221,6 +191,23 @@ class SheetsRepository @Inject constructor(
                 
                 android.util.Log.d("SheetsRepository", "Computed startRow: $startRow")
 
+                // Count-based duplicate detection
+                val sheetCounts = mutableMapOf<String, Int>()
+                for (row in values) {
+                    if (row.size < 2) continue
+                    val rawDate = row[0].toString().trim()
+                    val rawAmtStr = row[1].toString().trim()
+                    if (rawDate.isEmpty() && rawAmtStr.isEmpty()) continue
+                    
+                    val rawAmt = rawAmtStr.replace(",", "").replace(Regex("[^\\d.-]"), "").toDoubleOrNull()
+                    if (rawAmt == null) continue
+                    
+                    val rowDate = parseRowDate(rawDate) ?: continue
+                    val dayStr = rowDate.format(dateFormatter)
+                    val key = "${dayStr}_${round(rawAmt).toLong()}"
+                    sheetCounts[key] = sheetCounts.getOrDefault(key, 0) + 1
+                }
+
                 // Prepare to gather batch data
                 val rowsToAdd = mutableListOf<List<Any>>()
                 val formatRequests = mutableListOf<Request>()
@@ -236,7 +223,16 @@ class SheetsRepository @Inject constructor(
                     val category = catAndCard.first
                     val finalCard = if (catAndCard.second.isNotEmpty()) catAndCard.second else cardName
 
-                    val isDup = isDuplicate(values, txn.date, txn.amount, finalCard)
+                    val dayStr = txn.date.format(dateFormatter)
+                    val key = "${dayStr}_${round(txn.amount).toLong()}"
+                    
+                    val existingCount = sheetCounts.getOrDefault(key, 0)
+                    val isDup = if (existingCount > 0) {
+                        sheetCounts[key] = existingCount - 1
+                        true
+                    } else {
+                        false
+                    }
 
                     if (isDup) {
                         skippedTxns.add(
@@ -252,7 +248,7 @@ class SheetsRepository @Inject constructor(
                             dateStr,
                             txn.amount,
                             txn.amount,
-                            0,
+                            "=IF(B$currentRow<>0,B$currentRow-C$currentRow,\"\")",
                             txn.remark,
                             category,
                             finalCard
@@ -285,7 +281,7 @@ class SheetsRepository @Inject constructor(
                                             ))
                                             .setShowCustomUi(true)
                                             .setStrict(true)
-                                    )
+                                            )
                                     .setUserEnteredFormat(com.google.api.services.sheets.v4.model.CellFormat()
                                         .setTextFormat(com.google.api.services.sheets.v4.model.TextFormat().setFontFamily("Lexend"))
                                     )
