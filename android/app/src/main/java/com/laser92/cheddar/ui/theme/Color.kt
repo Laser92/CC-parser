@@ -2,25 +2,25 @@ package com.laser92.cheddar.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val BgPrimary = Color(0xFF0A0A0F)
-val BgCard = Color(0x08FFFFFF)
-val BgCardHover = Color(0x0DFFFFFF)
-val BorderSubtle = Color(0x0FFFFFFF)
-val BorderFocus = Color(0x806366F1)
+val BgPrimary = Color(0xFF1A1714)
+val BgCard = Color(0x0FFFC825)
+val BgCardHover = Color(0x1AFFC825)
+val BorderSubtle = Color(0x26FFC125)
+val BorderFocus = Color(0x80FFA600)
 
-val TextPrimary = Color(0xFFF1F1F4)
-val TextSecondary = Color(0xFFA1A1AA)
-val TextMuted = Color(0xFF6B6B76)
+val TextPrimary = Color(0xFFFEF9E7)
+val TextSecondary = Color(0xFFE0B85C)
+val TextMuted = Color(0xFF9A7D42)
 
-val AccentStart = Color(0xFF6366F1)
-val AccentEnd = Color(0xFF8B5CF6)
-val AccentGlow = Color(0x266366F1)
+val AccentStart = Color(0xFFF59E0B)
+val AccentEnd = Color(0xFFF97316)
+val AccentGlow = Color(0x2EF59E0B)
 
 val Danger = Color(0xFFEF4444)
 val DangerBg = Color(0x14EF4444)
-val Success = Color(0xFF22C55E)
-val SuccessBg = Color(0x0F22C55E)
-val SuccessBorder = Color(0x2622C55E)
+val Success = Color(0xFF84CC16)
+val SuccessBg = Color(0x0F84CC16)
+val SuccessBorder = Color(0x2684CC16)
 
 val SheetsGreen = Color(0xFF059669)
 val SheetsGreenLight = Color(0xFF10B981)
