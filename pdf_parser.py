@@ -64,6 +64,49 @@ ALL_EXTENSIONS = PDF_EXTENSIONS | IMAGE_EXTENSIONS
 
 
 # ---------------------------------------------------------------------------
+# Bank / Card auto-detection from PDF text
+# ---------------------------------------------------------------------------
+BANK_SIGNATURES = {
+    'state bank': 'SBI', 'sbi card': 'SBI',
+    'hdfc bank': 'HDFC', 'hdfc ltd': 'HDFC',
+    'icici bank': 'ICICI', 'icici card': 'ICICI',
+    'axis bank': 'Axis', 'kotak': 'Kotak',
+    'scapia': 'Scapia', 'federal bank': 'Scapia',
+    'indusind': 'IndusInd', 'yes bank': 'Yes Bank',
+    'rbl bank': 'RBL', 'au small': 'AU Bank',
+    'idfc first': 'IDFC First',
+    'american express': 'Amex', 'amex': 'Amex',
+    'standard chartered': 'SC', 'citibank': 'Citi',
+    'bob card': 'BOB', 'canara bank': 'Canara',
+    'union bank': 'Union', 'pnb': 'PNB',
+    'hsbc': 'HSBC', 'dbs': 'DBS',
+    'slice': 'Slice', 'onecard': 'OneCard', 'one card': 'OneCard',
+}
+
+def detect_card_name(text: str) -> str:
+    """Auto-detect bank/card name from the first 500 chars of PDF text."""
+    lower = text[:500].lower()
+    for sig, name in BANK_SIGNATURES.items():
+        if sig in lower:
+            return name
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# Category auto-fill mapping (used by write_to_xlsx)
+# ---------------------------------------------------------------------------
+from sheets_integration import REMARK_TO_CATEGORY as _CATEGORY_MAP
+
+def _auto_category(remark: str) -> str:
+    """Return category for a merchant remark, or empty string."""
+    text = remark.lower()
+    for key, cat in _CATEGORY_MAP.items():
+        if key in text:
+            return cat
+    return ""
+
+
+# ---------------------------------------------------------------------------
 # Tesseract path auto-detection (Windows) — only used if pytesseract backend
 # ---------------------------------------------------------------------------
 def _detect_tesseract():
@@ -733,26 +776,8 @@ def write_to_xlsx(transactions: list[dict], output_path: str, card_name: str = "
         elif col_type == "card":
             return card_name
         elif col_type == "category":
-            remark = txn.get("remark", txn.get("description", "")).lower()
-            for key, cat in [
-                ('swiggy', 'Swiggy'),
-                ('instamart', 'Instamart'),
-                ('blinkit foods limit', 'Bistro'),
-                ('blinkit', 'Blinkit'),
-                ('zomato', 'Online Food'),
-                ('bistro', 'Bistro'),
-                ('rentomojo', 'Subscriptions >.<'),
-                ('wifi', 'Subscriptions >.<'),
-                ('coitonic', 'Clothes'),
-                ('ratnadeep', 'Ratnadeep'),
-                ('zepto', 'Blinkit'),
-                ('amazon', 'Amazon'),
-                ('devaraj enterpr', 'Petrol'),
-                ('anand', 'Outside Food')
-            ]:
-                if key in remark:
-                    return cat
-            return ""
+            remark = txn.get("remark", txn.get("description", ""))
+            return _auto_category(remark)
         elif col_type == "my_share":
             return None  # blank for user input
         elif col_type == "nitt_share":

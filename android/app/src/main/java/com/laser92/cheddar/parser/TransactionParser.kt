@@ -191,7 +191,8 @@ class TransactionParser @Inject constructor(
                     // Let's also check if the description has Refund or sign is +
                     val lowerDesc = desc.lowercase()
                     var isCredit = sign == "+" || sign == "\uFF0B" || cleanLine.lowercase().contains("refund")
-                    
+
+
                     if (isCredit) {
                         amount = -amount
                     }

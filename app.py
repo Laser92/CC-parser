@@ -1,4 +1,5 @@
 import os
+import json
 import tempfile
 import uuid
 from flask import Flask, request, render_template, send_file, jsonify
@@ -6,6 +7,8 @@ from pdf_parser import (
     extract_transactions_from_pdf,
     extract_transactions_from_image,
     write_to_xlsx,
+    detect_card_name,
+    _auto_category,
     PDF_EXTENSIONS,
     IMAGE_EXTENSIONS,
 )
@@ -16,7 +19,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
 @app.route('/')
 def index():
-    return render_template('index.html', version="1.2.0")
+    return render_template('index.html', version="2.1.0")
 
 
 @app.route('/upload', methods=['POST'])
@@ -130,6 +133,97 @@ def upload():
             os.rmdir(temp_dir)
         except:
             pass
+
+@app.route('/parse', methods=['POST'])
+def parse():
+    """
+    Parse endpoint — returns JSON array of transactions for preview.
+    Supports multiple files. Auto-detects bank name.
+    
+    POST multipart/form-data:
+      - file:      one or more PDF/image files (required)
+      - password:  PDF password (optional)
+      - card_name: card identifier (optional, auto-detected if empty)
+      - ocr_engine: tesseract or easyocr (default: easyocr)
+    
+    Returns JSON:
+      { transactions: [...], detected_card: "SBI", count: 23 }
+    """
+    files = request.files.getlist('file')
+    if not files or all(f.filename == '' for f in files):
+        return jsonify({'error': 'No files uploaded'}), 400
+    
+    password = request.form.get('password', '').strip() or None
+    card_name = request.form.get('card_name', '').strip()
+    ocr_engine = request.form.get('ocr_engine', 'easyocr').strip()
+    
+    all_transactions = []
+    detected_card = ''
+    
+    for file in files:
+        if file.filename == '':
+            continue
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in PDF_EXTENSIONS and ext not in IMAGE_EXTENSIONS:
+            continue
+        
+        temp_dir = tempfile.mkdtemp()
+        input_path = os.path.join(temp_dir, f'input{ext}')
+        try:
+            file.save(input_path)
+            
+            if ext in PDF_EXTENSIONS:
+                transactions = extract_transactions_from_pdf(input_path, password=password)
+                # Auto-detect bank name from first PDF
+                if not detected_card and not card_name:
+                    try:
+                        import pdfplumber
+                        with pdfplumber.open(input_path, password=password) as pdf:
+                            if pdf.pages:
+                                text = pdf.pages[0].extract_text(x_tolerance=1, y_tolerance=3) or ''
+                                detected_card = detect_card_name(text)
+                    except:
+                        pass
+            else:
+                transactions = extract_transactions_from_image(input_path, ocr_engine=ocr_engine)
+            
+            all_transactions.extend(transactions or [])
+        finally:
+            try:
+                if os.path.exists(input_path):
+                    os.remove(input_path)
+                os.rmdir(temp_dir)
+            except:
+                pass
+    
+    if not all_transactions:
+        return jsonify({'error': 'No transactions found in the uploaded file(s).'}), 400
+    
+    # Sort by date
+    all_transactions.sort(key=lambda t: t['date'])
+    
+    final_card = card_name or detected_card or 'SBI'
+    
+    # Serialize for JSON
+    result = []
+    for i, txn in enumerate(all_transactions):
+        remark = txn.get('remark', txn.get('description', ''))
+        result.append({
+            'id': i,
+            'date': txn['date'].strftime('%d/%m/%Y %H:%M') if txn['date'].hour or txn['date'].minute else txn['date'].strftime('%d/%m/%Y'),
+            'amount': txn['amount'],
+            'description': txn.get('description', ''),
+            'remark': remark,
+            'type': txn['type'],
+            'category': _auto_category(remark),
+            'card': final_card,
+        })
+    
+    return jsonify({
+        'transactions': result,
+        'detected_card': detected_card,
+        'count': len(result),
+    })
 
 
 @app.route('/reconcile', methods=['POST'])

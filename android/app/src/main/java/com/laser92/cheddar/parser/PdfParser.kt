@@ -42,4 +42,28 @@ class PdfParser @Inject constructor(
             }
         }
     }
+
+    fun detectCardName(text: String): String {
+        val signatures = mapOf(
+            "state bank" to "SBI", "sbi card" to "SBI",
+            "hdfc bank" to "HDFC", "hdfc ltd" to "HDFC",
+            "icici bank" to "ICICI", "icici card" to "ICICI",
+            "axis bank" to "Axis", "kotak" to "Kotak",
+            "scapia" to "Scapia", "federal bank" to "Scapia",
+            "indusind" to "IndusInd", "yes bank" to "Yes Bank",
+            "rbl bank" to "RBL", "au small" to "AU Bank",
+            "idfc first" to "IDFC First",
+            "american express" to "Amex", "amex" to "Amex",
+            "standard chartered" to "SC", "citibank" to "Citi",
+            "bob card" to "BOB", "canara bank" to "Canara",
+            "union bank" to "Union", "pnb" to "PNB",
+            "hsbc" to "HSBC", "dbs" to "DBS",
+            "slice" to "Slice", "onecard" to "OneCard", "one card" to "OneCard",
+        )
+        val lower = text.take(500).lowercase()
+        for ((key, name) in signatures) {
+            if (key in lower) return name
+        }
+        return ""
+    }
 }
