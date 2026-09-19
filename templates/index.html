@@ -35,6 +35,26 @@
             --success: #84cc16;
         }
 
+        [data-theme="light"] {
+            color-scheme: light;
+            --bg-primary: #FFF8E7;
+            --bg-card: rgba(245, 158, 11, 0.06);
+            --bg-card-hover: rgba(245, 158, 11, 0.10);
+            --bg-glass: rgba(255, 252, 240, 0.75);
+            --border-subtle: rgba(180, 130, 30, 0.2);
+            --border-focus: rgba(245, 158, 11, 0.5);
+            --text-primary: #1a1714;
+            --text-secondary: #7a5c1a;
+            --text-muted: #a08a50;
+            --accent-start: #d97706;
+            --accent-end: #ea580c;
+            --accent-glow: rgba(217, 119, 6, 0.12);
+            --danger: #dc2626;
+            --danger-bg: rgba(220, 38, 38, 0.06);
+            --danger-border: rgba(220, 38, 38, 0.15);
+            --success: #16a34a;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg-primary);
@@ -174,7 +194,7 @@
         .settings-overlay.active { display: flex; }
 
         .settings-modal {
-            background: #252017;
+            background: var(--bg-primary);
             border: 1px solid var(--border-subtle);
             border-radius: 24px;
             padding: 2rem;
@@ -817,8 +837,67 @@
             color: var(--accent-end);
         }
 
+        .analytics-area {
+            display: none;
+            margin-top: 1.5rem;
+        }
+        .analytics-area.active { display: block; }
+        .analytics-card {
+            background: var(--bg-glass);
+            border-radius: 20px;
+            backdrop-filter: blur(40px) saturate(1.5);
+            -webkit-backdrop-filter: blur(40px) saturate(1.5);
+            border: 1px solid var(--border-subtle);
+            padding: 1.5rem;
+        }
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .stat-card {
+            border-radius: 16px;
+            background: rgba(255, 200, 60, 0.05);
+            border: 1px solid var(--border-subtle);
+            padding: 1rem;
+        }
+        .stat-card .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin: 1rem 0;
+        }
+        .top-merchants {
+            list-style: none;
+        }
+        .top-merchants li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid rgba(255, 193, 37, 0.05);
+        }
+        .recurring-badge {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-start);
+            font-size: 0.6875rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
         /* Responsive */
         @media (max-width: 480px) {
+            .analytics-grid { grid-template-columns: 1fr; }
+
             body {
                 padding: 1.5rem 1rem;
                 align-items: flex-start;
@@ -1132,7 +1211,7 @@
         .preview-table th {
             position: sticky;
             top: 0;
-            background: #252017;
+            background: var(--bg-primary);
             color: var(--text-secondary);
             font-weight: 600;
             font-size: 0.75rem;
@@ -1210,6 +1289,11 @@
 
         <!-- Main Card -->
         <div class="card" style="position: relative;">
+            <button class="settings-btn" id="themeToggle" title="Toggle Light/Dark" style="right: 52px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="themeIcon">
+                    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+            </button>
             <button class="settings-btn" id="settingsBtn" title="Column Settings">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"/>
@@ -1453,6 +1537,50 @@
             </div>
         </div>
 
+        <!-- Analytics Dashboard -->
+        <div class="analytics-area" id="analyticsArea">
+            <div class="analytics-card">
+                <div class="preview-header">
+                    <h3>📊 Spending Analytics</h3>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="analytics-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="analyticsTotalSpend">₹0</div>
+                        <div class="stat-label">Total Spend</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="analyticsAvgPerDay">₹0</div>
+                        <div class="stat-label">Avg / Day</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="analyticsHighest">₹0</div>
+                        <div class="stat-label">Highest Transaction</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="analyticsTotalCredits">₹0</div>
+                        <div class="stat-label">Total Credits / Refunds</div>
+                    </div>
+                </div>
+
+                <!-- Category Pie Chart -->
+                <h4 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem; font-size: 0.9rem;">Spending by Category</h4>
+                <div class="chart-container" style="display: flex; align-items: center; gap: 1rem;">
+                    <canvas id="categoryPieChart" width="200" height="200" style="max-width:200px;"></canvas>
+                    <div id="pieLegend" style="font-size: 0.75rem; color: var(--text-secondary);"></div>
+                </div>
+
+                <!-- Top Merchants -->
+                <h4 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem; font-size: 0.9rem;">Top 5 Merchants</h4>
+                <ol class="top-merchants" id="topMerchants"></ol>
+
+                <!-- Recurring Subscriptions -->
+                <h4 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem; font-size: 0.9rem;">🔄 Recurring Subscriptions</h4>
+                <div id="recurringList" style="font-size: 0.8125rem;"></div>
+            </div>
+        </div>
+
         <!-- Footer -->
         <div class="footer">
             Cheddar v{{ version }} &middot; Secure &amp; Private
@@ -1597,6 +1725,27 @@
             const passwordToggle = document.getElementById('passwordToggle');
             const eyeIcon = document.getElementById('eyeIcon');
             const eyeOffIcon = document.getElementById('eyeOffIcon');
+            // ---- Theme toggle ----
+            const savedTheme = localStorage.getItem('cheddar_theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            if (savedTheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            
+            document.getElementById('themeToggle').addEventListener('click', () => {
+                const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+                if (isLight) {
+                    document.documentElement.removeAttribute('data-theme');
+                    localStorage.setItem('cheddar_theme', 'dark');
+                    document.getElementById('themeIcon').innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    localStorage.setItem('cheddar_theme', 'light');
+                    document.getElementById('themeIcon').innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+                }
+            });
+            // Set initial icon
+            if (savedTheme === 'light') {
+                document.getElementById('themeIcon').innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+            }
+
             const form = document.getElementById('uploadForm');
             const submitBtn = document.getElementById('submitBtn');
             const reconcileBtn = document.getElementById('reconcileBtn');
@@ -1818,6 +1967,8 @@
                         cb.checked = selectAll.checked;
                     });
                 });
+                
+                renderAnalytics(parsedTransactions);
             }
 
             function getSelectedTransactions() {
@@ -2077,6 +2228,125 @@
                 } else {
                     showSuccess('All transactions already exist in the sheet — nothing to add.');
                 }
+            }
+
+            // ---- Analytics ----
+            function renderAnalytics(transactions) {
+                const area = document.getElementById('analyticsArea');
+                if (!transactions || transactions.length === 0) {
+                    area.classList.remove('active');
+                    return;
+                }
+                
+                const debits = transactions.filter(t => t.type !== 'C' && t.amount > 0);
+                const credits = transactions.filter(t => t.type === 'C' || t.amount < 0);
+                
+                const totalSpend = debits.reduce((s, t) => s + t.amount, 0);
+                const totalCredits = credits.reduce((s, t) => s + Math.abs(t.amount), 0);
+                const highest = debits.length ? Math.max(...debits.map(t => t.amount)) : 0;
+                
+                // Calculate date range for avg/day
+                const dates = transactions.map(t => {
+                    const parts = t.date.split('/');
+                    return new Date(parts[2].split(' ')[0], parseInt(parts[1]) - 1, parseInt(parts[0]));
+                });
+                const minDate = new Date(Math.min(...dates));
+                const maxDate = new Date(Math.max(...dates));
+                const days = Math.max(1, Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1);
+                const avgPerDay = totalSpend / days;
+                
+                const fmt = (n) => '₹' + n.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                document.getElementById('analyticsTotalSpend').textContent = fmt(totalSpend);
+                document.getElementById('analyticsAvgPerDay').textContent = fmt(avgPerDay);
+                document.getElementById('analyticsHighest').textContent = fmt(highest);
+                document.getElementById('analyticsTotalCredits').textContent = fmt(totalCredits);
+                
+                // Category breakdown
+                const catSpend = {};
+                for (const t of debits) {
+                    const cat = t.category || 'Uncategorized';
+                    catSpend[cat] = (catSpend[cat] || 0) + t.amount;
+                }
+                const sortedCats = Object.entries(catSpend).sort((a, b) => b[1] - a[1]);
+                
+                // Pie chart
+                const canvas = document.getElementById('categoryPieChart');
+                const ctx = canvas.getContext('2d');
+                const cx = 100, cy = 100, r = 90;
+                const colors = [
+                    '#f59e0b', '#f97316', '#ef4444', '#84cc16', '#06b6d4',
+                    '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#6366f1',
+                    '#a855f7', '#22d3ee', '#fb923c', '#4ade80', '#e879f9'
+                ];
+                
+                ctx.clearRect(0, 0, 200, 200);
+                let startAngle = -Math.PI / 2;
+                const total = sortedCats.reduce((s, c) => s + c[1], 0);
+                
+                let legendHtml = '';
+                sortedCats.forEach(([cat, amt], i) => {
+                    const slice = (amt / total) * Math.PI * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.arc(cx, cy, r, startAngle, startAngle + slice);
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.fill();
+                    startAngle += slice;
+                    
+                    const pct = ((amt / total) * 100).toFixed(1);
+                    legendHtml += `<div style="display:flex;align-items:center;gap:6px;margin:3px 0;">`
+                        + `<span style="width:10px;height:10px;border-radius:50%;background:${colors[i % colors.length]};display:inline-block;"></span>`
+                        + `<span>${cat} — ${fmt(amt)} (${pct}%)</span></div>`;
+                });
+                document.getElementById('pieLegend').innerHTML = legendHtml;
+                
+                // Top 5 merchants
+                const merchantSpend = {};
+                for (const t of debits) {
+                    const m = t.remark || 'Unknown';
+                    merchantSpend[m] = (merchantSpend[m] || 0) + t.amount;
+                }
+                const topM = Object.entries(merchantSpend).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                let mHtml = '';
+                for (const [m, amt] of topM) {
+                    mHtml += `<li><span style="color:var(--text-primary);">${m}</span><span style="color:var(--accent-start);font-weight:600;">${fmt(amt)}</span></li>`;
+                }
+                document.getElementById('topMerchants').innerHTML = mHtml;
+                
+                // Recurring detection
+                const merchantCount = {};
+                for (const t of debits) {
+                    const m = t.remark || 'Unknown';
+                    if (!merchantCount[m]) merchantCount[m] = { amounts: [], dates: [] };
+                    merchantCount[m].amounts.push(t.amount);
+                    merchantCount[m].dates.push(t.date);
+                }
+                
+                let recurHtml = '';
+                const recurringFound = [];
+                for (const [m, info] of Object.entries(merchantCount)) {
+                    if (info.amounts.length >= 2) {
+                        const avg = info.amounts.reduce((s, a) => s + a, 0) / info.amounts.length;
+                        const allSimilar = info.amounts.every(a => Math.abs(a - avg) / avg < 0.15);
+                        if (allSimilar) {
+                            recurringFound.push({ merchant: m, count: info.amounts.length, avg });
+                        }
+                    }
+                }
+                
+                if (recurringFound.length > 0) {
+                    recurringFound.sort((a, b) => b.avg * b.count - a.avg * a.count);
+                    for (const r of recurringFound) {
+                        recurHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid rgba(255,193,37,0.05);">`
+                            + `<span style="color:var(--text-primary);">${r.merchant} <span class="recurring-badge">${r.count}× / period</span></span>`
+                            + `<span style="color:var(--accent-start);font-weight:600;">${fmt(r.avg)}/ea</span></div>`;
+                    }
+                } else {
+                    recurHtml = '<div style="color:var(--text-muted);font-style:italic;">No recurring subscriptions detected in this statement.</div>';
+                }
+                document.getElementById('recurringList').innerHTML = recurHtml;
+                
+                area.classList.add('active');
             }
 
             // Prevent default dragover on the whole page
