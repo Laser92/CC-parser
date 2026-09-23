@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheddar — Compare Statements</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: dark;
+            --bg-primary: #1a1714;
+            --bg-card: rgba(255, 200, 60, 0.06);
+            --bg-card-hover: rgba(255, 200, 60, 0.10);
+            --bg-glass: rgba(40, 35, 25, 0.65);
+            --border-subtle: rgba(255, 193, 37, 0.15);
+            --border-focus: rgba(255, 166, 0, 0.5);
+            --text-primary: #fef9e7;
+            --text-secondary: #e0b85c;
+            --text-muted: #9a7d42;
+            --accent-start: #f59e0b;
+            --accent-end: #f97316;
+            --accent-glow: rgba(245, 158, 11, 0.18);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.08);
+            --danger-border: rgba(239, 68, 68, 0.2);
+            --success: #84cc16;
+        }
+
+        [data-theme="light"] {
+            color-scheme: light;
+            --bg-primary: #FFF8E7;
+            --bg-card: rgba(245, 158, 11, 0.06);
+            --bg-card-hover: rgba(245, 158, 11, 0.10);
+            --bg-glass: rgba(255, 252, 240, 0.75);
+            --border-subtle: rgba(180, 130, 30, 0.2);
+            --border-focus: rgba(245, 158, 11, 0.5);
+            --text-primary: #1a1714;
+            --text-secondary: #7a5c1a;
+            --text-muted: #a08a50;
+            --accent-start: #d97706;
+            --accent-end: #ea580c;
+            --accent-glow: rgba(217, 119, 6, 0.12);
+            --danger: #dc2626;
+            --danger-bg: rgba(220, 38, 38, 0.06);
+            --danger-border: rgba(220, 38, 38, 0.15);
+            --success: #16a34a;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .glass-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            margin-bottom: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .back-link {
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--accent-start);
+        }
+
+        .title-group {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .icon-cheese {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .dropzone-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .dropzone {
+            border: 2px dashed var(--border-subtle);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 150px;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--border-focus);
+            background: var(--bg-card-hover);
+        }
+
+        .dropzone input[type="file"] {
+            display: none;
+        }
+
+        .dropzone p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            pointer-events: none;
+        }
+
+        .dropzone .icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--accent-start);
+            pointer-events: none;
+        }
+        
+        .file-name {
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-top: 0.5rem;
+            word-break: break-all;
+            display: none;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"], input[type="password"] {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 0.875rem 1rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        
+        [data-theme="light"] input[type="text"], [data-theme="light"] input[type="password"] {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        input:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px var(--accent-glow);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-delta {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .text-green { color: var(--success); }
+        .text-red { color: var(--danger); }
+
+        .merchants-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .merchants-list {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        
+        .merchants-list h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .merchants-list ul {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .merchants-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .merchants-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .dot-green { background-color: var(--success); }
+        .dot-red { background-color: var(--danger); }
+
+        .category-breakdown {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        .category-breakdown h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        th {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        td {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+        
+        .bar-container {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            margin-top: 4px;
+            overflow: hidden;
+            display: flex;
+        }
+        
+        .bar-a {
+            height: 100%;
+            background: var(--text-muted);
+        }
+        
+        .bar-b {
+            height: 100%;
+            background: var(--accent-start);
+        }
+        
+        .error-message {
+            display: none;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            color: var(--danger);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .dropzone-container, .form-row, .merchants-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="glass-card">
+            <div class="header">
+                <a href="/" class="back-link">← Back to Parser</a>
+                <div class="title-group">
+                    <div class="icon-cheese">🧀</div>
+                    <h1>Cheddar</h1>
+                    <p class="subtitle">Compare Statements</p>
+                </div>
+            </div>
+
+            <form id="compareForm">
+                <div class="dropzone-container">
+                    <div class="dropzone" id="dropzoneA" onclick="document.getElementById('fileA').click()">
+                        <div class="icon">📄</div>
+                        <p>Statement A (Older)</p>
+                        <p class="file-name" id="fileNameA"></p>
+                        <input type="file" id="fileA" name="fileA" accept=".pdf,image/*" required>
+                    </div>
+                    
+                    <div class="dropzone" id="dropzoneB" onclick="document.getElementById('fileB').click()">
+                        <div class="icon">📄</div>
+                        <p>Statement B (Newer)</p>
+                        <p class="file-name" id="fileNameB"></p>
+                        <input type="file" id="fileB" name="fileB" accept=".pdf,image/*" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="card_name">Card Name (Optional)</label>
+                        <input type="text" id="card_name" name="card_name" placeholder="e.g. SBI, HDFC">
+                    </div>
+                    <div class="input-group">
+                        <label for="password">PDF Password (Optional)</label>
+                        <input type="password" id="password" name="password" placeholder="Leave blank if not protected">
+                    </div>
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <span class="btn-text">Compare</span>
+                    <div class="spinner" id="spinner"></div>
+                </button>
+            </form>
+        </div>
+        
+        <div class="glass-card results" id="resultsSection">
+            <div class="summary-cards">
+                <div class="stat-card">
+                    <div class="stat-label">Total A</div>
+                    <div class="stat-value" id="valTotalA">₹0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total B</div>
+                    <div class="stat-value" id="valTotalB">₹0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Delta Amount</div>
+                    <div class="stat-value" id="valDeltaAmt">₹0.00</div>
+                    <div class="stat-delta" id="valDeltaPct">0%</div>
+                </div>
+            </div>
+            
+            <div class="merchants-grid">
+                <div class="merchants-list">
+                    <h3><span class="dot dot-green"></span> New Merchants in B</h3>
+                    <ul id="newMerchantsList"></ul>
+                </div>
+                <div class="merchants-list">
+                    <h3><span class="dot dot-red"></span> Stopped Merchants (Only in A)</h3>
+                    <ul id="stoppedMerchantsList"></ul>
+                </div>
+            </div>
+            
+            <div class="category-breakdown">
+                <h3>Category Breakdown</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Month A</th>
+                            <th>Month B</th>
+                            <th>Change</th>
+                            <th>Relative Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoryTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // File handling
+        function setupDropzone(zoneId, inputId, nameId) {
+            const zone = document.getElementById(zoneId);
+            const input = document.getElementById(inputId);
+            const nameDisp = document.getElementById(nameId);
+            const p = zone.querySelector('p');
+            
+            input.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    nameDisp.textContent = e.target.files[0].name;
+                    nameDisp.style.display = 'block';
+                    p.style.display = 'none';
+                }
+            });
+            
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('dragover');
+            });
+            
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('dragover');
+            });
+            
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                
+                if (e.dataTransfer.files.length > 0) {
+                    input.files = e.dataTransfer.files;
+                    const event = new Event('change');
+                    input.dispatchEvent(event);
+                }
+            });
+        }
+        
+        setupDropzone('dropzoneA', 'fileA', 'fileNameA');
+        setupDropzone('dropzoneB', 'fileB', 'fileNameB');
+        
+        const form = document.getElementById('compareForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnText = document.querySelector('.btn-text');
+        const spinner = document.getElementById('spinner');
+        const errorMsg = document.getElementById('errorMessage');
+        const resultsSection = document.getElementById('resultsSection');
+        
+        const formatMoney = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num);
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            errorMsg.style.display = 'none';
+            resultsSection.style.display = 'none';
+            submitBtn.disabled = true;
+            btnText.textContent = 'Analyzing...';
+            spinner.style.display = 'block';
+            
+            const formData = new FormData(form);
+            
+            try {
+                const res = await fetch('/api/compare', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to compare statements');
+                }
+                
+                // Populate results
+                document.getElementById('valTotalA').textContent = formatMoney(data.monthA.total);
+                document.getElementById('valTotalB').textContent = formatMoney(data.monthB.total);
+                
+                const deltaAmt = data.monthB.total - data.monthA.total;
+                const deltaEl = document.getElementById('valDeltaAmt');
+                const deltaPctEl = document.getElementById('valDeltaPct');
+                
+                deltaEl.textContent = (deltaAmt > 0 ? '+' : '') + formatMoney(deltaAmt);
+                deltaPctEl.textContent = (deltaAmt > 0 ? '+' : '') + data.delta + '%';
+                
+                if (deltaAmt > 0) {
+                    deltaEl.className = 'stat-value text-red';
+                    deltaPctEl.className = 'stat-delta text-red';
+                } else if (deltaAmt < 0) {
+                    deltaEl.className = 'stat-value text-green';
+                    deltaPctEl.className = 'stat-delta text-green';
+                } else {
+                    deltaEl.className = 'stat-value';
+                    deltaPctEl.className = 'stat-delta';
+                }
+                
+                // Populate merchants
+                const newList = document.getElementById('newMerchantsList');
+                newList.innerHTML = '';
+                if (data.new_merchants.length === 0) {
+                    newList.innerHTML = '<li class="text-secondary">None</li>';
+                } else {
+                    data.new_merchants.forEach(m => {
+                        const li = document.createElement('li');
+                        li.textContent = m;
+                        newList.appendChild(li);
+                    });
+                }
+                
+                const stoppedList = document.getElementById('stoppedMerchantsList');
+                stoppedList.innerHTML = '';
+                if (data.stopped_merchants.length === 0) {
+                    stoppedList.innerHTML = '<li class="text-secondary">None</li>';
+                } else {
+                    data.stopped_merchants.forEach(m => {
+                        const li = document.createElement('li');
+                        li.textContent = m;
+                        stoppedList.appendChild(li);
+                    });
+                }
+                
+                // Populate categories
+                const tbody = document.getElementById('categoryTableBody');
+                tbody.innerHTML = '';
+                
+                const allCats = new Set([
+                    ...Object.keys(data.monthA.categories),
+                    ...Object.keys(data.monthB.categories)
+                ]);
+                
+                let maxCatAmt = 0;
+                for (let cat of allCats) {
+                    maxCatAmt = Math.max(maxCatAmt, data.monthA.categories[cat] || 0, data.monthB.categories[cat] || 0);
+                }
+                
+                const catArr = Array.from(allCats).map(cat => {
+                    const amtA = data.monthA.categories[cat] || 0;
+                    const amtB = data.monthB.categories[cat] || 0;
+                    return { cat, amtA, amtB, total: amtA + amtB };
+                }).sort((a, b) => b.total - a.total);
+                
+                catArr.forEach(c => {
+                    const tr = document.createElement('tr');
+                    
+                    const change = c.amtB - c.amtA;
+                    let changeHtml = formatMoney(Math.abs(change));
+                    if (change > 0) changeHtml = `<span class="text-red">+${changeHtml}</span>`;
+                    else if (change < 0) changeHtml = `<span class="text-green">-${changeHtml}</span>`;
+                    else changeHtml = '<span class="text-secondary">0</span>';
+                    
+                    const pctA = (c.amtA / (maxCatAmt || 1)) * 100;
+                    const pctB = (c.amtB / (maxCatAmt || 1)) * 100;
+                    
+                    tr.innerHTML = `
+                        <td>${c.cat}</td>
+                        <td>${formatMoney(c.amtA)}</td>
+                        <td>${formatMoney(c.amtB)}</td>
+                        <td>${changeHtml}</td>
+                        <td>
+                            <div class="bar-container">
+                                <div class="bar-a" style="width: ${pctA}%"></div>
+                            </div>
+                            <div class="bar-container">
+                                <div class="bar-b" style="width: ${pctB}%"></div>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                btnText.textContent = 'Compare';
+                spinner.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

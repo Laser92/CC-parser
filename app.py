@@ -353,6 +353,81 @@ def api_status():
         })
 
 
+@app.route('/compare')
+def compare_page():
+    return render_template('compare.html', version="2.1.0")
+
+
+@app.route('/api/compare', methods=['POST'])
+def compare_statements():
+    """
+    Compare two PDF statements side by side.
+    Expects: fileA, fileB (PDF files), optional password, card_name
+    """
+    fileA = request.files.get('fileA')
+    fileB = request.files.get('fileB')
+    if not fileA or not fileB:
+        return jsonify({'error': 'Two PDF files are required'}), 400
+    
+    password = request.form.get('password', '').strip() or None
+    card_name = request.form.get('card_name', '').strip() or 'SBI'
+    
+    import tempfile
+    results = {}
+    for label, f in [('monthA', fileA), ('monthB', fileB)]:
+        ext = os.path.splitext(f.filename)[1].lower()
+        temp_dir = tempfile.mkdtemp()
+        input_path = os.path.join(temp_dir, f'input{ext}')
+        try:
+            f.save(input_path)
+            if ext in PDF_EXTENSIONS:
+                txns = extract_transactions_from_pdf(input_path, password=password)
+            elif ext in IMAGE_EXTENSIONS:
+                txns = extract_transactions_from_image(input_path)
+            else:
+                txns = []
+            
+            debits = [t for t in (txns or []) if t['type'] != 'C' and t['amount'] > 0]
+            merchants = set()
+            categories = {}
+            total = 0
+            for t in debits:
+                remark = t.get('remark', t.get('description', ''))
+                merchants.add(remark)
+                total += t['amount']
+                cat = _auto_category(remark) or 'Uncategorized'
+                categories[cat] = categories.get(cat, 0) + t['amount']
+            
+            results[label] = {
+                'total': round(total, 2),
+                'count': len(debits),
+                'merchants': sorted(merchants),
+                'categories': {k: round(v, 2) for k, v in sorted(categories.items(), key=lambda x: -x[1])}
+            }
+        finally:
+            try:
+                if os.path.exists(input_path):
+                    os.remove(input_path)
+                os.rmdir(temp_dir)
+            except:
+                pass
+    
+    setA = set(results['monthA']['merchants'])
+    setB = set(results['monthB']['merchants'])
+    
+    totalA = results['monthA']['total']
+    totalB = results['monthB']['total']
+    delta = round(((totalB - totalA) / totalA * 100) if totalA else 0, 1)
+    
+    return jsonify({
+        'monthA': results['monthA'],
+        'monthB': results['monthB'],
+        'delta': delta,
+        'new_merchants': sorted(setB - setA),
+        'stopped_merchants': sorted(setA - setB)
+    })
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)

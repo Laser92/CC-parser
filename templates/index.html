@@ -1266,6 +1266,99 @@
             margin-top: 1rem;
         }
 
+        /* Onboarding Walkthrough */
+        .onboarding-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        .onboarding-overlay.active { display: flex; }
+
+        .onboarding-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+        }
+        .onboarding-box h3 {
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        .onboarding-box p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+        .onboarding-dots {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 1.5rem;
+        }
+        .onboarding-dots span {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--border-subtle);
+            transition: all 0.3s;
+        }
+        .onboarding-dots span.active {
+            background: var(--accent-start);
+            width: 24px;
+            border-radius: 4px;
+        }
+        .onboarding-btns {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+        .onboarding-btns button {
+            padding: 0.5rem 1.5rem;
+            border-radius: 12px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .onboarding-skip {
+            background: transparent;
+            color: var(--text-muted);
+        }
+        .onboarding-skip:hover { color: var(--text-secondary); }
+        .onboarding-next {
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            color: #0f0d08;
+        }
+        .onboarding-next:hover { opacity: 0.9; }
+
+        .onboarding-emoji {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        /* Compare link */
+        .compare-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+            text-decoration: none;
+            margin-top: 0.75rem;
+            transition: color 0.2s;
+        }
+        .compare-link:hover { color: var(--accent-start); }
+
         @media (max-width: 480px) {
             .btn-row {
                 flex-direction: column;
@@ -1584,6 +1677,32 @@
         <!-- Footer -->
         <div class="footer">
             Cheddar v{{ version }} &middot; Secure &amp; Private
+            <br>
+            <a href="/compare" class="compare-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M8 3H3v5M3 16v5h5M21 16v5h-5M3 12h18"/></svg>
+                Compare Statements
+            </a>
+            &nbsp;&middot;&nbsp;
+            <a href="#" class="compare-link" id="helpBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                How it works
+            </a>
+        </div>
+    </div>
+
+    <!-- Onboarding Walkthrough -->
+    <div class="onboarding-overlay" id="onboarding">
+        <div class="onboarding-box">
+            <div class="onboarding-emoji" id="obEmoji">📄</div>
+            <h3 id="obTitle">Upload a Statement</h3>
+            <p id="obText">Drop a credit card PDF or screenshot into the upload area. You can upload multiple files at once.</p>
+            <div class="onboarding-dots" id="obDots">
+                <span class="active"></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="onboarding-btns">
+                <button class="onboarding-skip" id="obSkip">Skip</button>
+                <button class="onboarding-next" id="obNext">Next</button>
+            </div>
         </div>
     </div>
 
@@ -2348,6 +2467,61 @@
                 
                 area.classList.add('active');
             }
+
+            // ---- Onboarding Walkthrough ----
+            const onboardingSteps = [
+                { emoji: '📄', title: 'Upload a Statement', text: 'Drop a credit card PDF or screenshot into the upload area. You can upload multiple files at once.' },
+                { emoji: '🏦', title: 'Auto-Detection', text: 'Cheddar automatically detects your bank and fills in the card name. No manual setup needed for 30+ banks.' },
+                { emoji: '⚙️', title: 'Customize Columns', text: 'Click the gear icon ⚙️ to configure which columns appear in your XLSX and Sheets — Date, Amount, Category, and more.' },
+                { emoji: '📋', title: 'Preview & Edit', text: 'After parsing, review all transactions in a table. Uncheck or delete rows you don\'t want before exporting.' },
+                { emoji: '📊', title: 'Analytics & Export', text: 'See spending breakdowns, top merchants, and recurring subscriptions. Download XLSX or push directly to Google Sheets.' },
+            ];
+            let obStep = 0;
+
+            function showOnboarding() {
+                obStep = 0;
+                updateOnboarding();
+                document.getElementById('onboarding').classList.add('active');
+            }
+
+            function updateOnboarding() {
+                const s = onboardingSteps[obStep];
+                document.getElementById('obEmoji').textContent = s.emoji;
+                document.getElementById('obTitle').textContent = s.title;
+                document.getElementById('obText').textContent = s.text;
+                const dots = document.getElementById('obDots').children;
+                for (let i = 0; i < dots.length; i++) {
+                    dots[i].className = i === obStep ? 'active' : '';
+                }
+                document.getElementById('obNext').textContent = obStep === onboardingSteps.length - 1 ? 'Got it!' : 'Next';
+            }
+
+            function closeOnboarding() {
+                document.getElementById('onboarding').classList.remove('active');
+                localStorage.setItem('cheddar_onboarded', '1');
+            }
+
+            document.getElementById('obNext').addEventListener('click', () => {
+                if (obStep < onboardingSteps.length - 1) {
+                    obStep++;
+                    updateOnboarding();
+                } else {
+                    closeOnboarding();
+                }
+            });
+
+            document.getElementById('obSkip').addEventListener('click', closeOnboarding);
+
+            // Show on first visit
+            if (!localStorage.getItem('cheddar_onboarded')) {
+                showOnboarding();
+            }
+
+            // Help button replays onboarding
+            document.getElementById('helpBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                showOnboarding();
+            });
 
             // Prevent default dragover on the whole page
             document.addEventListener('dragover', e => e.preventDefault());
