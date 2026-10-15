@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cheddar — CC Statement Parser</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="apple-touch-icon" href="/static/favicon.png">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#f59e0b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1668,6 +1673,12 @@
                 <h4 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem; font-size: 0.9rem;">Top 5 Merchants</h4>
                 <ol class="top-merchants" id="topMerchants"></ol>
 
+                <!-- Monthly Trends -->
+                <h4 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem; font-size: 0.9rem;">📈 Monthly Spend Trend</h4>
+                <div class="chart-container" style="height: 180px;">
+                    <canvas id="monthlyTrendChart" style="width:100%; height:100%;"></canvas>
+                </div>
+
                 <!-- Recurring Subscriptions -->
                 <h4 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem; font-size: 0.9rem;">🔄 Recurring Subscriptions</h4>
                 <div id="recurringList" style="font-size: 0.8125rem;"></div>
@@ -2465,6 +2476,53 @@
                 }
                 document.getElementById('recurringList').innerHTML = recurHtml;
                 
+                // Monthly trend bar chart
+                const trendCanvas = document.getElementById('monthlyTrendChart');
+                trendCanvas.width = trendCanvas.parentElement.offsetWidth;
+                trendCanvas.height = 170;
+                const tctx = trendCanvas.getContext('2d');
+                tctx.clearRect(0, 0, trendCanvas.width, trendCanvas.height);
+                
+                // Group by day
+                const dailySpend = {};
+                for (const t of debits) {
+                    const parts = t.date.split('/');
+                    const key = `${parts[0]}/${parts[1]}`;
+                    dailySpend[key] = (dailySpend[key] || 0) + t.amount;
+                }
+                const dayKeys = Object.keys(dailySpend);
+                if (dayKeys.length > 0) {
+                    const maxVal = Math.max(...Object.values(dailySpend));
+                    const barW = Math.max(8, Math.min(40, (trendCanvas.width - 40) / dayKeys.length - 4));
+                    const chartH = trendCanvas.height - 30;
+                    const startX = 10;
+                    
+                    // Get computed colors
+                    const style = getComputedStyle(document.documentElement);
+                    const barColor = style.getPropertyValue('--accent-start').trim() || '#f59e0b';
+                    const labelColor = style.getPropertyValue('--text-muted').trim() || '#9a7d42';
+                    
+                    dayKeys.forEach((key, i) => {
+                        const val = dailySpend[key];
+                        const barH = (val / maxVal) * chartH;
+                        const x = startX + i * (barW + 4);
+                        const y = chartH - barH;
+                        
+                        tctx.fillStyle = barColor;
+                        tctx.beginPath();
+                        tctx.roundRect(x, y, barW, barH, 3);
+                        tctx.fill();
+                        
+                        // Label every Nth bar
+                        if (dayKeys.length <= 15 || i % Math.ceil(dayKeys.length / 10) === 0) {
+                            tctx.fillStyle = labelColor;
+                            tctx.font = '9px Inter, sans-serif';
+                            tctx.textAlign = 'center';
+                            tctx.fillText(key, x + barW / 2, chartH + 14);
+                        }
+                    });
+                }
+
                 area.classList.add('active');
             }
 
@@ -2527,6 +2585,11 @@
             document.addEventListener('dragover', e => e.preventDefault());
             document.addEventListener('drop', e => e.preventDefault());
         })();
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+        }
     </script>
 </body>
 </html>

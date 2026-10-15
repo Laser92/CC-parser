@@ -62,6 +62,12 @@ class ParserViewModel @Inject constructor(
                 _uiState.update { it.copy(sheetId = savedSheetId) }
             }
         }
+        
+        viewModelScope.launch {
+            preferencesManager.columnsFlow.collect { savedColumns ->
+                _uiState.update { it.copy(columns = savedColumns) }
+            }
+        }
     }
 
     fun selectFile(uri: Uri, fileName: String, fileSize: Long) {
@@ -137,6 +143,13 @@ class ParserViewModel @Inject constructor(
         }
     }
 
+    fun updateColumns(columns: List<com.laser92.cheddar.model.ColumnConfig>) {
+        _uiState.update { it.copy(columns = columns) }
+        viewModelScope.launch {
+            preferencesManager.updateColumns(columns)
+        }
+    }
+
     fun downloadXlsx() {
         val uri = _uiState.value.selectedFileUri ?: return
         val isPdf = _uiState.value.isPdf
@@ -165,7 +178,7 @@ class ParserViewModel @Inject constructor(
                     
                     val outputFile = File(cheddarDir, "Statement_${System.currentTimeMillis()}.xlsx")
                     
-                    val written = xlsxWriter.writeToXlsx(transactions, outputFile, cardName, style)
+                    val written = xlsxWriter.writeToXlsx(transactions, outputFile, cardName, style, _uiState.value.columns)
                     
                     if (written > 0) {
                         _uiState.update { it.copy(exportedFile = outputFile) }
@@ -252,5 +265,6 @@ data class ParserUiState(
     val accountEmail: String? = null,
     val sheetId: String = "1mmetc8XmMGdY3jsq6OBpc8VwhfP0wdKf-IbmHovtva8",
     val availableSpreadsheets: List<Pair<String, String>> = emptyList(),
-    val isLoadingSpreadsheets: Boolean = false
+    val isLoadingSpreadsheets: Boolean = false,
+    val columns: List<com.laser92.cheddar.model.ColumnConfig> = com.laser92.cheddar.model.DEFAULT_COLUMNS
 )

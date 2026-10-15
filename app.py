@@ -15,6 +15,28 @@ from pdf_parser import (
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cheddar.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'dev-secret-key-replace-in-prod'
+
+from models import db, User, StatementHistory
+from auth import auth
+from flask_login import LoginManager, current_user
+
+db.init_app(app)
+login_manager = LoginManager()
+login_manager.login_view = 'auth.login'
+login_manager.init_app(app)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+app.register_blueprint(auth)
+
+with app.app_context():
+    db.create_all()
+
 
 
 @app.route('/')
@@ -108,6 +130,19 @@ def upload():
             return jsonify({
                 'error': 'No valid transactions found in the file.'
             }), 400
+        
+        if current_user.is_authenticated:
+            total = sum(t.get('amount', 0) for t in transactions if t.get('type') != 'C' and t.get('amount', 0) > 0)
+            history = StatementHistory(
+                user_id=current_user.id,
+                filename=file.filename,
+                card_name=card_name,
+                transaction_count=count,
+                total_amount=total,
+                action='xlsx'
+            )
+            db.session.add(history)
+            db.session.commit()
         
         # Send file
         return send_file(
@@ -203,6 +238,19 @@ def parse():
     all_transactions.sort(key=lambda t: t['date'])
     
     final_card = card_name or detected_card or 'SBI'
+    
+    if current_user.is_authenticated:
+        total = sum(t.get('amount', 0) for t in all_transactions if t.get('type') != 'C' and t.get('amount', 0) > 0)
+        history = StatementHistory(
+            user_id=current_user.id,
+            filename=", ".join(f.filename for f in files if f.filename)[:199],
+            card_name=final_card,
+            transaction_count=len(all_transactions),
+            total_amount=total,
+            action='parse'
+        )
+        db.session.add(history)
+        db.session.commit()
     
     # Serialize for JSON
     result = []
@@ -304,6 +352,19 @@ def reconcile():
         
         # Reconcile with Google Sheets
         result = sheets_reconcile(transactions, card_name, columns=columns)
+        
+        if current_user.is_authenticated:
+            total = sum(t.get('amount', 0) for t in transactions if t.get('type') != 'C' and t.get('amount', 0) > 0)
+            history = StatementHistory(
+                user_id=current_user.id,
+                filename=file.filename,
+                card_name=card_name,
+                transaction_count=len(transactions),
+                total_amount=total,
+                action='sheets'
+            )
+            db.session.add(history)
+            db.session.commit()
         
         return jsonify(result)
     

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,6 +25,7 @@ class PreferencesManager @Inject constructor(
         val DEFAULT_CARD_NAME = stringPreferencesKey("default_card_name")
         val DEFAULT_STYLE = intPreferencesKey("default_style")
         val GOOGLE_ACCOUNT_EMAIL = stringPreferencesKey("google_account_email")
+        val COLUMNS = stringPreferencesKey("columns")
     }
 
     val sheetIdFlow: Flow<String> = dataStore.data.map { preferences ->
@@ -67,6 +69,22 @@ class PreferencesManager @Inject constructor(
             } else {
                 preferences[GOOGLE_ACCOUNT_EMAIL] = email
             }
+        }
+    }
+
+    val columnsFlow: Flow<List<com.laser92.cheddar.model.ColumnConfig>> = dataStore.data.map { preferences ->
+        preferences[COLUMNS]?.let { jsonString ->
+            try {
+                kotlinx.serialization.json.Json.decodeFromString<List<com.laser92.cheddar.model.ColumnConfig>>(jsonString)
+            } catch (e: Exception) {
+                com.laser92.cheddar.model.DEFAULT_COLUMNS
+            }
+        } ?: com.laser92.cheddar.model.DEFAULT_COLUMNS
+    }
+
+    suspend fun updateColumns(columns: List<com.laser92.cheddar.model.ColumnConfig>) {
+        dataStore.edit { preferences ->
+            preferences[COLUMNS] = kotlinx.serialization.json.Json.encodeToString(columns)
         }
     }
 }

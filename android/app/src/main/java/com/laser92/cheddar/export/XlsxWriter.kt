@@ -34,7 +34,8 @@ class XlsxWriter @Inject constructor(
         transactions: List<Transaction>,
         outputFile: File,
         cardName: String = "SBI",
-        style: Int = 1
+        style: Int = 1,
+        columns: List<com.laser92.cheddar.model.ColumnConfig> = com.laser92.cheddar.model.DEFAULT_COLUMNS
     ): Int {
         val workbook = XSSFWorkbook()
         val sheet = workbook.createSheet("Credit_$cardName")
@@ -81,10 +82,9 @@ class XlsxWriter @Inject constructor(
 
         // Row 2: Headers (index 1)
         val headerRow = sheet.createRow(1)
-        val headers = listOf("Date", "Amount", "My Share", "Nitt Share", "Remarks", "Category", "Card")
-        for ((index, header) in headers.withIndex()) {
+        for ((index, config) in columns.withIndex()) {
             val cell = headerRow.createCell(index)
-            cell.setCellValue(header)
+            cell.setCellValue(config.label)
             cell.cellStyle = headerStyle
         }
 
@@ -96,68 +96,66 @@ class XlsxWriter @Inject constructor(
             val row = sheet.createRow(rowIndex)
             val isEven = (rowIndex - 2) % 2 != 0 // For alternating rows
             val currentDataStyle = if (style == 2 && isEven) altRowStyle else dataStyle
-            val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-            val dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+            val dateFormatterStr = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            val dateTimeFormatterStr = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
             
-            // Column A: Date
-            val dateCell = row.createCell(0)
-            val dateStr = if (txn.date.hour == 0 && txn.date.minute == 0) {
-                txn.date.format(dateFormatter)
-            } else {
-                txn.date.format(dateTimeFormatter)
+            for ((colIndex, config) in columns.withIndex()) {
+                val cell = row.createCell(colIndex)
+                cell.cellStyle = if (config.type == "my_share" && style == 1) highlightStyle else currentDataStyle
+
+                when (config.type) {
+                    "date" -> {
+                        val dateStr = if (txn.date.hour == 0 && txn.date.minute == 0) {
+                            txn.date.format(dateFormatterStr)
+                        } else {
+                            txn.date.format(dateTimeFormatterStr)
+                        }
+                        cell.setCellValue(dateStr)
+                    }
+                    "amount" -> cell.setCellValue(txn.amount)
+                    "my_share" -> {} // Empty
+                    "nitt_share" -> {
+                        val excelRow = rowIndex + 1
+                        val amountColLetter = (65 + columns.indexOfFirst { it.type == "amount" }).toChar()
+                        val myShareColLetter = (65 + columns.indexOfFirst { it.type == "my_share" }).toChar()
+                        if (columns.any { it.type == "amount" } && columns.any { it.type == "my_share" }) {
+                            cell.cellFormula = "IF($amountColLetter$excelRow<>0,$amountColLetter$excelRow-$myShareColLetter$excelRow,\"\")"
+                        }
+                    }
+                    "remark" -> cell.setCellValue(txn.remark)
+                    "category" -> {
+                        val category = categoryMapper.applyCategories(txn.remark).first
+                        cell.setCellValue(category)
+                    }
+                    "card" -> cell.setCellValue(cardName)
+                    "custom" -> {
+                        val excelRow = rowIndex + 1
+                        val formula = config.formula.replace("{row}", excelRow.toString())
+                        if (formula.isNotBlank()) {
+                            if (formula.startsWith("=")) {
+                                cell.cellFormula = formula.substring(1)
+                            } else {
+                                cell.cellFormula = formula
+                            }
+                        }
+                    }
+                }
             }
-            dateCell.setCellValue(dateStr)
-            dateCell.cellStyle = currentDataStyle
-
-            // Column B: Amount
-            val amountCell = row.createCell(1)
-            amountCell.setCellValue(txn.amount) // assumes amount is Double
-            amountCell.cellStyle = currentDataStyle
-
-            // Column C: My Share (blank)
-            val myShareCell = row.createCell(2)
-            myShareCell.cellStyle = if (style == 1) highlightStyle else currentDataStyle
-
-            // Column D: Nitt Share (formula)
-            val nittShareCell = row.createCell(3)
-            val excelRow = rowIndex + 1
-            nittShareCell.cellFormula = "IF(B$excelRow<>0,B$excelRow-C$excelRow,\"\")"
-            nittShareCell.cellStyle = currentDataStyle
-
-            // Column E: Remarks
-            val remarksCell = row.createCell(4)
-            remarksCell.setCellValue(txn.remark)
-            remarksCell.cellStyle = currentDataStyle
-
-            // Column F: Category
-            val categoryCell = row.createCell(5)
-            val category = categoryMapper.applyCategories(txn.remark).first
-            categoryCell.setCellValue(category)
-            categoryCell.cellStyle = currentDataStyle
-
-            // Column G: Card
-            val cardCell = row.createCell(6)
-            cardCell.setCellValue(cardName)
-            cardCell.cellStyle = currentDataStyle
 
             rowIndex++
         }
 
-        // Auto-filter on A2:G{last_row}
+        // Auto-filter on all columns
         val lastRow = if (rowIndex > 2) rowIndex - 1 else 2
-        sheet.setAutoFilter(CellRangeAddress(1, lastRow, 0, 6))
+        sheet.setAutoFilter(CellRangeAddress(1, lastRow, 0, if (columns.isNotEmpty()) columns.size - 1 else 0))
 
-        // Freeze pane at A3 (row index 2)
+        // Freeze pane at row 3 (index 2)
         sheet.createFreezePane(0, 2)
 
-        // Column widths: A=14, B=12, C=12, D=12, E=20, F=15, G=10
-        sheet.setColumnWidth(0, 14 * 256)
-        sheet.setColumnWidth(1, 12 * 256)
-        sheet.setColumnWidth(2, 12 * 256)
-        sheet.setColumnWidth(3, 12 * 256)
-        sheet.setColumnWidth(4, 20 * 256)
-        sheet.setColumnWidth(5, 15 * 256)
-        sheet.setColumnWidth(6, 10 * 256)
+        // Column widths
+        for (i in columns.indices) {
+            sheet.setColumnWidth(i, 15 * 256)
+        }
 
         // Write to file
         FileOutputStream(outputFile).use { out ->

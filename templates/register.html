@@ -1,0 +1,50 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 2rem auto; text-align: center;">
+    <h2 style="color: var(--text-primary); margin-bottom: 1.5rem;">Create Account</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" style="margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; background: {% if category == 'error' %}var(--danger-bg){% else %}var(--bg-card-hover){% endif %}; border: 1px solid {% if category == 'error' %}var(--danger-border){% else %}var(--border-subtle){% endif %}; color: {% if category == 'error' %}var(--danger){% else %}var(--success){% endif %};">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.register') }}">
+        <div class="input-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required placeholder="John Doe">
+        </div>
+        <div class="input-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required placeholder="name@example.com">
+        </div>
+        <div class="input-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required placeholder="••••••••">
+        </div>
+        <div class="input-group">
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required placeholder="••••••••">
+        </div>
+        
+        <button type="submit" class="btn" style="width: 100%; justify-content: center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5.5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="8.5" cy="7" r="4"></circle>
+                <line x1="20" y1="8" x2="20" y2="14"></line>
+                <line x1="23" y1="11" x2="17" y2="11"></line>
+            </svg>
+            Register
+        </button>
+    </form>
+    
+    <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--text-secondary);">
+        Already have an account? <a href="{{ url_for('auth.login') }}" style="color: var(--accent-start); text-decoration: none;">Login</a>
+    </p>
+</div>
+{% endblock %}

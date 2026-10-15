@@ -14,11 +14,17 @@ fun AppNavigation() {
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(
-                onNavigateToSettings = { navController.navigate("settings") }
+                onNavigateToSettings = { navController.navigate("settings") },
+                onNavigateToColumnSettings = { navController.navigate("column_settings") }
             )
         }
         composable("settings") {
             SettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("column_settings") {
+            com.laser92.cheddar.ui.screen.ColumnSettingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
